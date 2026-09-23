@@ -13,6 +13,7 @@ import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { BulkActionsBar } from './components/BulkActionsBar';
 import { BulkDateModal } from './components/BulkDateModal';
 import { BulkDeleteConfirmModal } from './components/BulkDeleteConfirmModal';
+import { InboxSyncModal } from './components/InboxSyncModal';
 import {
   Plus,
   Sparkles,
@@ -23,6 +24,7 @@ import {
   FileSpreadsheet,
   Moon,
   Sun,
+  Mail,
 } from 'lucide-react';
 
 const STORAGE_KEY = 'job_tracker_applications_v1';
@@ -82,6 +84,7 @@ export default function App() {
   const [editingApp, setEditingApp] = useState<JobApplication | null>(null);
 
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [isInboxModalOpen, setIsInboxModalOpen] = useState(false);
 
   const [deletingApp, setDeletingApp] = useState<JobApplication | null>(null);
 
@@ -338,6 +341,49 @@ export default function App() {
     }
   };
 
+  const handleApplyInboxStatusUpdates = (
+    updates: Array<{
+      appId: string;
+      newStatus: JobStatus;
+      noteAddition: string;
+      meetingDate?: string;
+    }>
+  ) => {
+    setApplications((prev) =>
+      prev.map((app) => {
+        const update = updates.find((u) => u.appId === app.id);
+        if (!update) return app;
+        const updatedNotes = app.notes
+          ? `${app.notes}\n${update.noteAddition}`
+          : update.noteAddition;
+        return {
+          ...app,
+          status: update.newStatus,
+          notes: updatedNotes,
+          lastUpdated: new Date().toISOString(),
+        };
+      })
+    );
+  };
+
+  const handleAddNewDiscoveredApp = (newApp: Partial<JobApplication>) => {
+    const created: JobApplication = {
+      id: `job-email-${Date.now()}`,
+      role: newApp.role || 'Specjalista QA',
+      company: newApp.company || 'Nowa firma',
+      portal: newApp.portal || 'E-mail',
+      url: newApp.url || '',
+      appliedDate: newApp.appliedDate || new Date().toISOString().split('T')[0],
+      status: newApp.status || 'Weryfikacja CV',
+      location: newApp.location || 'Polska / Remote',
+      salary: newApp.salary || '',
+      skills: newApp.skills || ['QA'],
+      notes: newApp.notes || 'Wykryto automatycznie z korespondencji e-mail.',
+      lastUpdated: new Date().toISOString(),
+    };
+    setApplications((prev) => [created, ...prev]);
+  };
+
   const handleResetToInitial = () => {
     if (
       window.confirm(
@@ -523,6 +569,19 @@ export default function App() {
                 )}
               </button>
 
+              {/* Inbox Sync Button (Outlook & Gmail) */}
+              <button
+                id="inbox-sync-top-btn"
+                onClick={() => setIsInboxModalOpen(true)}
+                className="px-3 py-2 bg-blue-50 dark:bg-blue-950/60 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
+                title="Synchronizuj statusy aplikacji z poczty Outlook & Gmail"
+              >
+                <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span className="hidden lg:inline">Skrzynka e-mail (Outlook & Gmail)</span>
+                <span className="lg:hidden hidden sm:inline">Skrzynka e-mail</span>
+                <span className="sm:hidden">Poczta</span>
+              </button>
+
               <button
                 id="batch-add-top-btn"
                 onClick={() => setIsBatchModalOpen(true)}
@@ -684,6 +743,15 @@ export default function App() {
         existingApplications={applications}
         onClose={() => setIsBatchModalOpen(false)}
         onBatchAdd={handleBatchAdd}
+      />
+
+      <InboxSyncModal
+        isOpen={isInboxModalOpen}
+        onClose={() => setIsInboxModalOpen(false)}
+        applications={applications}
+        onApplyStatusUpdates={handleApplyInboxStatusUpdates}
+        onAddNewApplication={handleAddNewDiscoveredApp}
+        showToast={showToast}
       />
 
       <DeleteConfirmModal

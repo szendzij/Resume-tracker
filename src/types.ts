@@ -46,3 +46,45 @@ export interface FilterState {
   customEndDate?: string;
   sortBy: SortOption;
 }
+
+export type EmailProvider = 'outlook' | 'gmail' | 'manual';
+
+export interface EmailMessage {
+  id: string;
+  provider: EmailProvider;
+  sender: string;
+  senderName?: string;
+  subject: string;
+  date: string;
+  snippet: string;
+  body?: string;
+}
+
+export interface EmailAnalysisResult {
+  emailId: string;
+  provider: EmailProvider;
+  subject: string;
+  sender: string;
+  senderName?: string;
+  date: string;
+  matchedCompany?: string;
+  matchedRole?: string;
+  currentStatus?: JobStatus;
+  suggestedStatus?: JobStatus;
+  confidence: 'high' | 'medium' | 'low';
+  summary: string;
+  reasoning: string;
+  meetingDate?: string;
+  meetingLink?: string;
+  actionRequired?: string;
+  matchedApplicationId?: string; // ID of matched existing application
+  isStatusChange: boolean;
+  isNewApplication: boolean;
+  newApplicationData?: {
+    role: string;
+    company: string;
+    portal: string;
+    location?: string;
+  };
+  rawExcerpt?: string;
+}

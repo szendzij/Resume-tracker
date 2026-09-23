@@ -1,6 +1,6 @@
 {
   "name": "Job Application Tracker",
-  "description": "Organizuj wysłane aplikacje o pracę, wyciągaj automatycznie szczegóły ofert za pomocą AI Gemini, monitoruj statusy rekrutacji, daty i filtruj po portalach.",
+  "description": "Organizuj wysłane aplikacje o pracę, integruj ze skrzynką e-mail (Outlook & Gmail), automatycznie wykrywaj najświeższe statusy rekrutacji za pomocą AI Gemini.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
