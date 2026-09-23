@@ -24,69 +24,69 @@ export const JobStats: React.FC<JobStatsProps> = ({ applications }) => {
 
   return (
     <div id="job-stats-container" className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-      <div id="stat-total" className="bg-white border border-slate-200/90 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
-        <div className="flex items-center justify-between text-slate-500 mb-1">
+      <div id="stat-total" className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
           <span className="text-xs font-medium uppercase tracking-wider">Aplikacje</span>
-          <Send className="w-4 h-4 text-blue-600" />
+          <Send className="w-4 h-4 text-blue-600 dark:text-blue-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-slate-900">{total}</span>
-          <span className="text-xs text-slate-500 font-medium">wszystkich</span>
+          <span className="text-2xl font-bold text-slate-900 dark:text-white">{total}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">wszystkich</span>
         </div>
       </div>
 
-      <div id="stat-active" className="bg-white border border-slate-200/90 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
-        <div className="flex items-center justify-between text-slate-500 mb-1">
+      <div id="stat-active" className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
           <span className="text-xs font-medium uppercase tracking-wider">W toku</span>
-          <Clock className="w-4 h-4 text-purple-600" />
+          <Clock className="w-4 h-4 text-purple-600 dark:text-purple-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-purple-700">{activeProcesses}</span>
-          <span className="text-xs text-purple-600/80 font-medium">aktywnych</span>
+          <span className="text-2xl font-bold text-purple-700 dark:text-purple-300">{activeProcesses}</span>
+          <span className="text-xs text-purple-600/80 dark:text-purple-400 font-medium">aktywnych</span>
         </div>
       </div>
 
-      <div id="stat-interviews" className="bg-white border border-slate-200/90 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
-        <div className="flex items-center justify-between text-slate-500 mb-1">
+      <div id="stat-interviews" className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
           <span className="text-xs font-medium uppercase tracking-wider">Rozmowy & Taski</span>
-          <Users className="w-4 h-4 text-indigo-600" />
+          <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-indigo-700">{interviewsAndTasks}</span>
-          <span className="text-xs text-indigo-600/80 font-medium">zaawansowane</span>
+          <span className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">{interviewsAndTasks}</span>
+          <span className="text-xs text-indigo-600/80 dark:text-indigo-400 font-medium">zaawansowane</span>
         </div>
       </div>
 
-      <div id="stat-offers" className="bg-white border border-slate-200/90 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
-        <div className="flex items-center justify-between text-slate-500 mb-1">
+      <div id="stat-offers" className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
           <span className="text-xs font-medium uppercase tracking-wider">Oferty</span>
-          <Award className="w-4 h-4 text-emerald-600" />
+          <Award className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-emerald-600">{offers}</span>
-          <span className="text-xs text-emerald-600/80 font-medium">sukces</span>
+          <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{offers}</span>
+          <span className="text-xs text-emerald-600/80 dark:text-emerald-500 font-medium">sukces</span>
         </div>
       </div>
 
-      <div id="stat-rejected" className="bg-white border border-slate-200/90 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
-        <div className="flex items-center justify-between text-slate-500 mb-1">
+      <div id="stat-rejected" className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
           <span className="text-xs font-medium uppercase tracking-wider">Odrzucone</span>
-          <XCircle className="w-4 h-4 text-rose-500" />
+          <XCircle className="w-4 h-4 text-rose-500 dark:text-rose-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-rose-600">{rejected}</span>
-          <span className="text-xs text-slate-500 font-medium">zakończone</span>
+          <span className="text-2xl font-bold text-rose-600 dark:text-rose-400">{rejected}</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">zakończone</span>
         </div>
       </div>
 
-      <div id="stat-response-rate" className="bg-white border border-slate-200/90 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
-        <div className="flex items-center justify-between text-slate-500 mb-1">
+      <div id="stat-response-rate" className="bg-white dark:bg-slate-900 border border-slate-200/90 dark:border-slate-800 rounded-xl p-3.5 shadow-xs flex flex-col justify-between">
+        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 mb-1">
           <span className="text-xs font-medium uppercase tracking-wider">Odzew firm</span>
-          <CheckCircle2 className="w-4 h-4 text-teal-600" />
+          <CheckCircle2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-bold text-teal-700">{responseRate}%</span>
-          <span className="text-xs text-slate-500 font-medium">w procesie</span>
+          <span className="text-2xl font-bold text-teal-700 dark:text-teal-300">{responseRate}%</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">w procesie</span>
         </div>
       </div>
     </div>

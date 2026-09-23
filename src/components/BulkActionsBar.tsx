@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { JobStatus, JobApplication } from '../types';
+import { JobStatus } from '../types';
 import { ALL_STATUSES, STATUS_CONFIG } from '../utils/statusConfig';
 import {
   Trash2,
@@ -10,7 +10,6 @@ import {
   CheckSquare,
   Square,
   ChevronDown,
-  Layers,
 } from 'lucide-react';
 
 interface BulkActionsBarProps {
@@ -45,7 +44,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
       id="bulk-actions-dock"
       className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 w-[95%] max-w-4xl animate-in slide-in-from-bottom-5 fade-in duration-200"
     >
-      <div className="bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl p-3 sm:px-5 sm:py-3.5 shadow-2xl flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-slate-900/95 dark:bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/80 rounded-2xl p-3 sm:px-5 sm:py-3.5 shadow-2xl flex flex-wrap items-center justify-between gap-3">
         {/* Left Section: Selection Count & Select/Deselect all */}
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2">
@@ -103,8 +102,8 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                   className="fixed inset-0 z-40"
                   onClick={() => setIsStatusMenuOpen(false)}
                 />
-                <div className="absolute right-0 bottom-full mb-2 z-50 w-52 bg-white rounded-xl shadow-xl border border-slate-200 py-1.5 text-slate-800 text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-100">
-                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                <div className="absolute right-0 bottom-full mb-2 z-50 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 py-1.5 text-slate-800 dark:text-slate-100 text-xs overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 border-b border-slate-100 dark:border-slate-700">
                     Wybierz nowy status:
                   </div>
                   {ALL_STATUSES.map((status) => {
@@ -116,10 +115,10 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
                           onBulkStatusChange(status);
                           setIsStatusMenuOpen(false);
                         }}
-                        className="w-full text-left px-3 py-2 hover:bg-slate-50 flex items-center gap-2 transition-colors cursor-pointer"
+                        className="w-full text-left px-3 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors cursor-pointer"
                       >
                         <span className={`w-2 h-2 rounded-full ${meta.dot}`} />
-                        <span className="font-medium text-slate-800">{status}</span>
+                        <span className="font-medium text-slate-800 dark:text-slate-100">{status}</span>
                       </button>
                     );
                   })}
@@ -169,7 +168,7 @@ export const BulkActionsBar: React.FC<BulkActionsBarProps> = ({
             id="bulk-deselect-btn"
             type="button"
             onClick={onDeselectAll}
-            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors ml-1"
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-colors ml-1 cursor-pointer"
             title="Wyczyść zaznaczenie"
           >
             <X className="w-4 h-4" />

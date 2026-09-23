@@ -510,6 +510,8 @@ export function parseRawLinksInput(
   };
 }
 
+export const parseBatchInput = parseRawLinksInput;
+
 /**
  * Re-evaluates duplicate status for an existing list of items (e.g. after AI enrichment).
  */

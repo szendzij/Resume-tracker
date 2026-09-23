@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { JobApplication, JobStatus } from '../types';
 import { ALL_STATUSES, POPULAR_PORTALS } from '../utils/statusConfig';
-import { X, Sparkles, Loader2, Link2, Building2, Briefcase, Calendar, MapPin, DollarSign, Tag, FileText, ExternalLink } from 'lucide-react';
+import {
+  X,
+  Sparkles,
+  Loader2,
+  Link2,
+  Building2,
+  Briefcase,
+  Calendar,
+  MapPin,
+  DollarSign,
+  Tag,
+  FileText,
+} from 'lucide-react';
 
 interface JobModalProps {
   isOpen: boolean;
@@ -51,7 +63,6 @@ export const JobModal: React.FC<JobModalProps> = ({
       setSkills(initialData.skills || []);
       setNotes(initialData.notes || '');
     } else {
-      // Reset defaults for new application
       setRole('');
       setCompany('');
       setPortal('LinkedIn');
@@ -100,15 +111,13 @@ export const JobModal: React.FC<JobModalProps> = ({
       });
 
       if (!res.ok) {
-        throw new Error('Błąd serwera podczas analizy linku');
+        throw new Error('Błąd odpowiedzi serwera');
       }
 
       const data = await res.json();
 
       if (data.role) setRole(data.role);
       if (data.company) setCompany(data.company);
-      if (data.location) setLocation(data.location);
-
       if (data.portal) {
         if (POPULAR_PORTALS.includes(data.portal)) {
           setPortal(data.portal);
@@ -118,26 +127,24 @@ export const JobModal: React.FC<JobModalProps> = ({
           setCustomPortal(data.portal);
         }
       }
-
-      if (Array.isArray(data.skills) && data.skills.length > 0) {
-        // Merge skills
-        const merged = Array.from(new Set([...skills, ...data.skills]));
-        setSkills(merged);
+      if (data.location) setLocation(data.location);
+      if (data.salary) setSalary(data.salary);
+      if (data.skills && Array.isArray(data.skills)) {
+        setSkills(Array.from(new Set([...skills, ...data.skills])));
       }
-
-      if (data.notes && !notes) {
-        setNotes(data.notes);
+      if (data.notes) {
+        setNotes((prev) => (prev ? `${prev}\n${data.notes}` : data.notes));
       }
 
       setAiMessage({
         type: 'success',
-        text: `AI Gemini przeanalizowało ofertę: ${data.company} - ${data.role}!`,
+        text: `✨ Pomyślnie wyciągnięto dane: ${data.company} - ${data.role}`,
       });
-    } catch (err: any) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
       setAiMessage({
         type: 'error',
-        text: 'Nie udało się pobrać szczegółów przez AI. Uzupełnij dane ręcznie.',
+        text: 'Nie udało się połączyć z AI. Sprawdź format linku lub uzupełnij pola ręcznie.',
       });
     } finally {
       setIsAiLoading(false);
@@ -146,12 +153,9 @@ export const JobModal: React.FC<JobModalProps> = ({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!role.trim() || !company.trim()) {
-      setAiMessage({ type: 'error', text: 'Podaj co najmniej stanowisko i firmę.' });
-      return;
-    }
+    if (!role.trim() || !company.trim()) return;
 
-    const finalPortal = portal === 'Inny portal' && customPortal.trim() ? customPortal.trim() : portal;
+    const finalPortal = portal === 'Inny portal' ? customPortal.trim() || 'Inny portal' : portal;
 
     onSave({
       role: role.trim(),
@@ -160,39 +164,38 @@ export const JobModal: React.FC<JobModalProps> = ({
       url: url.trim(),
       appliedDate,
       status,
-      location: location.trim() || undefined,
-      salary: salary.trim() || undefined,
+      location: location.trim(),
+      salary: salary.trim(),
       skills,
-      notes: notes.trim() || undefined,
+      notes: notes.trim(),
       lastUpdated: new Date().toISOString(),
     });
-
     onClose();
   };
 
   return (
     <div
       id="job-modal-backdrop"
-      className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150"
     >
       <div
         id="job-modal-container"
-        className="bg-white border border-slate-200 rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden my-8"
+        className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden my-8 animate-in zoom-in-95 duration-150"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {initialData ? 'Edytuj aplikację' : 'Dodaj nową aplikację'}
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Uzupełnij dane lub wklej link do oferty i pozwól AI wyciągnąć informacje.
             </p>
           </div>
           <button
             id="close-modal-btn"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -200,13 +203,13 @@ export const JobModal: React.FC<JobModalProps> = ({
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {/* AI Auto-extract section */}
-          <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-100 rounded-xl p-3.5 space-y-2">
-            <label className="text-xs font-semibold text-blue-900 flex items-center justify-between">
+          <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-100 dark:border-blue-900/60 rounded-xl p-3.5 space-y-2">
+            <label className="text-xs font-semibold text-blue-900 dark:text-blue-200 flex items-center justify-between">
               <span className="flex items-center gap-1.5">
-                <Link2 className="w-3.5 h-3.5 text-blue-600" />
+                <Link2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                 Link do oferty pracy (URL)
               </span>
-              <span className="text-[11px] text-blue-600 font-normal">
+              <span className="text-[11px] text-blue-600 dark:text-blue-400 font-normal">
                 np. LinkedIn, NoFluffJobs, JustJoinIT, Pracuj.pl
               </span>
             </label>
@@ -218,14 +221,14 @@ export const JobModal: React.FC<JobModalProps> = ({
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://nofluffjobs.com/job/... lub https://www.linkedin.com/jobs/view/..."
-                className="flex-1 px-3 py-2 bg-white border border-blue-200 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30"
+                className="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800/80 rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30"
               />
               <button
                 id="ai-extract-btn"
                 type="button"
                 onClick={handleAiExtract}
                 disabled={isAiLoading || !url}
-                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-xs transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed"
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-900/40 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-xs transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed"
                 title="Wyciągnij dane o stanowisku i firmie przez model LLM"
               >
                 {isAiLoading ? (
@@ -246,8 +249,8 @@ export const JobModal: React.FC<JobModalProps> = ({
               <div
                 className={`text-xs px-2.5 py-1.5 rounded-md flex items-center gap-1.5 ${
                   aiMessage.type === 'success'
-                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
-                    : 'bg-rose-50 text-rose-800 border border-rose-200'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800'
+                    : 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-800'
                 }`}
               >
                 {aiMessage.text}
@@ -258,7 +261,7 @@ export const JobModal: React.FC<JobModalProps> = ({
           {/* Role and Company */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Stanowisko / Rola <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -270,13 +273,13 @@ export const JobModal: React.FC<JobModalProps> = ({
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   placeholder="np. Senior QA Engineer"
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Firma / Pracodawca <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -288,7 +291,7 @@ export const JobModal: React.FC<JobModalProps> = ({
                   value={company}
                   onChange={(e) => setCompany(e.target.value)}
                   placeholder="np. Spyrosoft, GFT Poland"
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -297,14 +300,14 @@ export const JobModal: React.FC<JobModalProps> = ({
           {/* Portal, Status and Date */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Portal / Źródło oferty
               </label>
               <select
                 id="job-portal-select"
                 value={portal}
                 onChange={(e) => setPortal(e.target.value)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
               >
                 {POPULAR_PORTALS.map((p) => (
                   <option key={p} value={p}>
@@ -318,20 +321,20 @@ export const JobModal: React.FC<JobModalProps> = ({
                   value={customPortal}
                   onChange={(e) => setCustomPortal(e.target.value)}
                   placeholder="Wpisz nazwę portalu..."
-                  className="w-full mt-2 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900"
+                  className="w-full mt-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100"
                 />
               )}
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Status aplikacji
               </label>
               <select
                 id="job-status-select"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as JobStatus)}
-                className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
+                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
               >
                 {ALL_STATUSES.map((st) => (
                   <option key={st} value={st}>
@@ -342,7 +345,7 @@ export const JobModal: React.FC<JobModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Data wysłania CV <span className="text-rose-500">*</span>
               </label>
               <div className="relative">
@@ -353,7 +356,7 @@ export const JobModal: React.FC<JobModalProps> = ({
                   required
                   value={appliedDate}
                   onChange={(e) => setAppliedDate(e.target.value)}
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono"
                 />
               </div>
             </div>
@@ -362,7 +365,7 @@ export const JobModal: React.FC<JobModalProps> = ({
           {/* Location and Salary */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Lokalizacja / Tryb pracy
               </label>
               <div className="relative">
@@ -373,13 +376,13 @@ export const JobModal: React.FC<JobModalProps> = ({
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="np. Wrocław, Remote, Warszawa (Hybrydowo)"
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
                 Widełki wynagrodzenia (opcjonalnie)
               </label>
               <div className="relative">
@@ -390,7 +393,7 @@ export const JobModal: React.FC<JobModalProps> = ({
                   value={salary}
                   onChange={(e) => setSalary(e.target.value)}
                   placeholder="np. 18 000 - 24 000 PLN B2B"
-                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
             </div>
@@ -398,7 +401,7 @@ export const JobModal: React.FC<JobModalProps> = ({
 
           {/* Skills / Tech Stack Tags */}
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
               Wymagane technologie / słowa kluczowe
             </label>
             <div className="flex gap-2 mb-2">
@@ -411,13 +414,13 @@ export const JobModal: React.FC<JobModalProps> = ({
                   onChange={(e) => setSkillInput(e.target.value)}
                   onKeyDown={handleAddSkill}
                   placeholder="Wpisz np. Playwright, Python, BDD i naciśnij Enter"
-                  className="w-full pl-9 pr-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                  className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
               <button
                 type="button"
                 onClick={handleAddSkill}
-                className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium"
+                className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium cursor-pointer"
               >
                 Dodaj tag
               </button>
@@ -428,13 +431,13 @@ export const JobModal: React.FC<JobModalProps> = ({
                 {skills.map((skill) => (
                   <span
                     key={skill}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 text-slate-700 border border-slate-200 rounded-full text-xs font-medium"
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-full text-xs font-medium"
                   >
                     {skill}
                     <button
                       type="button"
                       onClick={() => handleRemoveSkill(skill)}
-                      className="text-slate-400 hover:text-slate-600"
+                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -446,7 +449,7 @@ export const JobModal: React.FC<JobModalProps> = ({
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-medium text-slate-700 mb-1">
+            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
               Notatki / Postępy w procesie
             </label>
             <div className="relative">
@@ -457,18 +460,18 @@ export const JobModal: React.FC<JobModalProps> = ({
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="np. Złożono przez formularz, czekam na kontakt od Karoliny z HR..."
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-lg text-xs text-slate-900 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
+                className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
               />
             </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100 dark:border-slate-800">
             <button
               id="cancel-modal-btn"
               type="button"
               onClick={onClose}
-              className="px-4 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+              className="px-4 py-2 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
             >
               Anuluj
             </button>

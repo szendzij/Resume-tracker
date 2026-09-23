@@ -23,6 +23,20 @@ export interface JobApplication {
   lastUpdated?: string;
 }
 
+export type SortOption =
+  | 'appliedDateDesc'
+  | 'appliedDateAsc'
+  | 'roleAsc'
+  | 'roleDesc'
+  | 'companyAsc'
+  | 'companyDesc'
+  | 'portalAsc'
+  | 'portalDesc'
+  | 'statusAsc'
+  | 'statusDesc'
+  | 'locationAsc'
+  | 'locationDesc';
+
 export interface FilterState {
   search: string;
   status: string; // 'ALL' or specific status
@@ -30,5 +44,5 @@ export interface FilterState {
   dateRange: 'ALL' | '7D' | '14D' | '30D' | 'CUSTOM';
   customStartDate?: string;
   customEndDate?: string;
-  sortBy: 'appliedDateDesc' | 'appliedDateAsc' | 'companyAsc' | 'roleAsc';
+  sortBy: SortOption;
 }
