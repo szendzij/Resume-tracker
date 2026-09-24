@@ -8,7 +8,8 @@ export const jobsRouter = Router();
 
 // Endpoint: Parse single job link via Gemini LLM + Heuristics
 jobsRouter.post('/parse-job', async (req: Request, res: Response) => {
-  const { url, rawText, linkTitle } = req.body;
+  const { url, rawText, linkTitle, customApiKey } = req.body;
+  const customKey = (req.headers['x-gemini-key'] as string) || customApiKey;
 
   if (!url && !rawText && !linkTitle) {
     res.status(400).json({ error: 'URL, tytuł lub treść oferty jest wymagana' });
@@ -17,7 +18,7 @@ jobsRouter.post('/parse-job', async (req: Request, res: Response) => {
 
   const { portal, hints } = deducePortalAndHints(url || '');
   const pageExcerpt = url ? await fetchPageExcerpt(url) : '';
-  const ai = getGemini();
+  const ai = getGemini(customKey);
 
   if (!ai) {
     const heuristicJob = extractHeuristicJob(url, linkTitle, portal, hints);
@@ -60,7 +61,8 @@ jobsRouter.post('/parse-job', async (req: Request, res: Response) => {
 
 // Endpoint: Batch parse multiple links with Gemini AI
 jobsRouter.post('/batch-parse', async (req: Request, res: Response) => {
-  const { items, urls } = req.body;
+  const { items, urls, customApiKey } = req.body;
+  const customKey = (req.headers['x-gemini-key'] as string) || customApiKey;
 
   let rawList: Array<{ id?: string; url: string; title?: string; rawText?: string }> = [];
   if (Array.isArray(items) && items.length > 0) {
@@ -75,7 +77,7 @@ jobsRouter.post('/batch-parse', async (req: Request, res: Response) => {
   }
 
   const itemsToProcess = rawList.slice(0, 60);
-  const ai = getGemini();
+  const ai = getGemini(customKey);
 
   if (!ai) {
     const fallbackResults = itemsToProcess.map((item, idx) => {

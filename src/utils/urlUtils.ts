@@ -14,9 +14,8 @@ export function normalizeJobUrl(rawUrl: string): string {
     }
 
     // Filter out marketing/tracking parameters
-    const trackingParamPrefixes = [
-      'utm_',
-      'gad_',
+    const trackingPrefixes = ['utm_', 'gad_'];
+    const exactTrackingParams = new Set([
       'gclid',
       'gbraid',
       'eclid',
@@ -32,14 +31,14 @@ export function normalizeJobUrl(rawUrl: string): string {
       'searchid',
       'source',
       's',
-    ];
+    ]);
 
     const cleanParams = new URLSearchParams();
     parsed.searchParams.forEach((val, key) => {
       const lowerKey = key.toLowerCase();
-      const isTracking = trackingParamPrefixes.some(
-        (prefix) => lowerKey === prefix || lowerKey.startsWith(prefix)
-      );
+      const isTracking =
+        exactTrackingParams.has(lowerKey) ||
+        trackingPrefixes.some((prefix) => lowerKey.startsWith(prefix));
       if (!isTracking) {
         cleanParams.append(key, val);
       }

@@ -3,8 +3,21 @@ import { ENV } from '../config/env';
 
 let aiClient: GoogleGenAI | null = null;
 
-export function getGemini(): GoogleGenAI | null {
-  if (!ENV.GEMINI_API_KEY) return null;
+export function getGemini(customKey?: string): GoogleGenAI | null {
+  const key = (customKey && customKey.trim()) || ENV.GEMINI_API_KEY;
+  if (!key) return null;
+
+  if (customKey && customKey.trim()) {
+    return new GoogleGenAI({
+      apiKey: customKey.trim(),
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+  }
+
   if (!aiClient) {
     aiClient = new GoogleGenAI({
       apiKey: ENV.GEMINI_API_KEY,
@@ -16,6 +29,60 @@ export function getGemini(): GoogleGenAI | null {
     });
   }
   return aiClient;
+}
+
+export async function validateGeminiApiKey(apiKey?: string): Promise<{
+  valid: boolean;
+  model: string;
+  response?: string;
+  error?: string;
+}> {
+  const key = (apiKey && apiKey.trim()) || ENV.GEMINI_API_KEY;
+  if (!key) {
+    return {
+      valid: false,
+      model: 'gemini-3.8-flash',
+      error: 'Brak klucza API do przetestowania.',
+    };
+  }
+
+  try {
+    const ai = new GoogleGenAI({
+      apiKey: key,
+      httpOptions: {
+        headers: {
+          'User-Agent': 'aistudio-build',
+        },
+      },
+    });
+
+    const res = await ai.models.generateContent({
+      model: 'gemini-3.8-flash',
+      contents: 'Odpowiedz tylko jednym słowem: "POŁĄCZONO".',
+    });
+
+    return {
+      valid: true,
+      model: 'gemini-3.8-flash',
+      response: res.text?.trim() || 'POŁĄCZONO',
+    };
+  } catch (error: any) {
+    let cleanMessage = error.message || 'Wystąpił błąd podczas walidacji klucza Gemini API.';
+    try {
+      const parsed = JSON.parse(cleanMessage);
+      if (parsed?.error?.message) {
+        cleanMessage = parsed.error.message;
+      }
+    } catch {
+      // Keep original message if not JSON
+    }
+
+    return {
+      valid: false,
+      model: 'gemini-3.8-flash',
+      error: cleanMessage,
+    };
+  }
 }
 
 export interface ParseJobParams {

@@ -45,7 +45,7 @@ export const STATUS_CONFIG: Record<JobStatus, StatusMeta> = {
     border: 'border-indigo-200 dark:border-indigo-800/70',
     dot: 'bg-indigo-500 dark:bg-indigo-400',
     badgeClass: 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 border-indigo-200 dark:border-indigo-800/70 hover:bg-indigo-100 dark:hover:bg-indigo-900/60',
-    description: 'Spotkanie z liderem technicznym lub zespołem QA',
+    description: 'Spotkanie techniczne lub rozmowa merytoryczna z zespołem',
   },
   'Zadanie rekrutacyjne': {
     label: 'Zadanie rekrutacyjne',

@@ -61,7 +61,7 @@ export function useApplications(onNotification?: (msg: string) => void) {
       } else {
         const newApp: JobApplication = {
           id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-          role: data.role || 'QA Engineer',
+          role: data.role || 'Stanowisko',
           company: data.company || 'Firma',
           portal: data.portal || 'LinkedIn',
           url: data.url || '',
@@ -136,7 +136,7 @@ export function useApplications(onNotification?: (msg: string) => void) {
     (newApp: Partial<JobApplication>) => {
       const created: JobApplication = {
         id: `job-email-${Date.now()}`,
-        role: newApp.role || 'Specjalista QA',
+        role: newApp.role || 'Stanowisko',
         company: newApp.company || 'Nowa firma',
         portal: newApp.portal || 'E-mail',
         url: newApp.url || '',
@@ -144,7 +144,7 @@ export function useApplications(onNotification?: (msg: string) => void) {
         status: newApp.status || 'Weryfikacja CV',
         location: newApp.location || 'Polska / Remote',
         salary: newApp.salary || '',
-        skills: newApp.skills || ['QA'],
+        skills: newApp.skills || [],
         notes: newApp.notes || 'Wykryto automatycznie z korespondencji e-mail.',
         lastUpdated: new Date().toISOString(),
       };
@@ -261,6 +261,54 @@ export function useApplications(onNotification?: (msg: string) => void) {
     [notify]
   );
 
+  // Import full JSON backup (merge or overwrite)
+  const importApplicationsFromJson = useCallback(
+    (importedApps: JobApplication[], mode: 'merge' | 'overwrite' = 'merge') => {
+      if (!Array.isArray(importedApps) || importedApps.length === 0) {
+        notify('Przesłany plik nie zawiera poprawnych aplikacji.');
+        return;
+      }
+
+      if (mode === 'overwrite') {
+        setApplications(importedApps);
+        notify(`Zastąpiono całą bazę danymi z kopii zapasowej (${importedApps.length} ofert).`);
+      } else {
+        const existingUrls = new Set(applications.map((a) => a.url).filter(Boolean));
+        const existingKeys = new Set(
+          applications.map((a) => `${(a.company || '').toLowerCase().trim()}|${(a.role || '').toLowerCase().trim()}`)
+        );
+
+        const uniqueNew: JobApplication[] = [];
+        let duplicateCount = 0;
+
+        importedApps.forEach((item) => {
+          const isUrlDup = item.url && existingUrls.has(item.url);
+          const compRoleKey = `${(item.company || '').toLowerCase().trim()}|${(item.role || '').toLowerCase().trim()}`;
+          const isKeyDup = existingKeys.has(compRoleKey);
+
+          if (isUrlDup || isKeyDup) {
+            duplicateCount++;
+          } else {
+            uniqueNew.push({
+              ...item,
+              id: item.id || `job-json-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            });
+            if (item.url) existingUrls.add(item.url);
+            existingKeys.add(compRoleKey);
+          }
+        });
+
+        setApplications((prev) => [...uniqueNew, ...prev]);
+        if (duplicateCount > 0) {
+          notify(`Pomyślnie scalono ${uniqueNew.length} ofert (pominięto ${duplicateCount} duplikatów).`);
+        } else {
+          notify(`Pomyślnie zaimportowano ${uniqueNew.length} ofert z kopii zapasowej.`);
+        }
+      }
+    },
+    [applications, notify]
+  );
+
   return {
     applications,
     setApplications,
@@ -268,6 +316,7 @@ export function useApplications(onNotification?: (msg: string) => void) {
     saveApplication,
     deleteApplication,
     addBatchApplications,
+    importApplicationsFromJson,
     applyInboxStatusUpdates,
     addNewDiscoveredApp,
     bulkUpdateStatus,

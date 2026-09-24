@@ -5,6 +5,7 @@ import { ENV } from './server/config/env';
 import { jobsRouter } from './server/routes/jobs.routes';
 import { authRouter, renderAuthCallbackHtml } from './server/routes/auth.routes';
 import { emailsRouter } from './server/routes/emails.routes';
+import { geminiRouter } from './server/routes/gemini.routes';
 
 // Re-export for backward compatibility
 export { deducePortalAndHints } from './server/services/heuristics.service';
@@ -27,6 +28,7 @@ app.get(['/auth/callback', '/auth/callback/'], (req: Request, res: Response) => 
 app.use('/api', authRouter);
 app.use('/api', jobsRouter);
 app.use('/api', emailsRouter);
+app.use('/api/gemini', geminiRouter);
 
 // Production static assets & Vite development middleware
 async function startServer() {

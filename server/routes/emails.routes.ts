@@ -48,7 +48,8 @@ emailsRouter.post('/gmail/messages', async (req: Request, res: Response) => {
 
 // Endpoint: AI Analysis of Emails against user's applications
 emailsRouter.post('/analyze-emails', async (req: Request, res: Response) => {
-  const { emails, applications } = req.body;
+  const { emails, applications, customApiKey } = req.body;
+  const customKey = (req.headers['x-gemini-key'] as string) || customApiKey;
 
   if (!Array.isArray(emails) || emails.length === 0) {
     res.status(400).json({ error: 'Przekaż tablicę wiadomości do analizy (emails)' });
@@ -56,6 +57,6 @@ emailsRouter.post('/analyze-emails', async (req: Request, res: Response) => {
   }
 
   const appList = Array.isArray(applications) ? applications : [];
-  const result = await analyzeEmailsWithAI(emails, appList);
+  const result = await analyzeEmailsWithAI(emails, appList, customKey);
   res.json(result);
 });

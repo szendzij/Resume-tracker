@@ -17,14 +17,16 @@ import { JobGrid } from './components/JobGrid';
 
 import { JobModal } from './components/JobModal';
 import { BatchAddModal } from './components/BatchAddModal';
+import { CsvImportModal } from './components/CsvImportModal';
 import { InboxSyncModal } from './components/InboxSyncModal';
+import { SettingsModal, SettingsTab } from './components/SettingsModal';
 import { DeleteConfirmModal } from './components/DeleteConfirmModal';
 import { BulkDeleteConfirmModal } from './components/BulkDeleteConfirmModal';
 import { BulkDateModal } from './components/BulkDateModal';
 
 export const App: React.FC = () => {
   // Theme & Toast hooks
-  const { isDark, toggleTheme } = useTheme();
+  const { isDark, toggleTheme, setTheme } = useTheme();
   const { toastMessage, showToast } = useToast();
 
   // Applications data hook
@@ -34,12 +36,12 @@ export const App: React.FC = () => {
     saveApplication,
     deleteApplication,
     addBatchApplications,
+    importApplicationsFromJson,
     applyInboxStatusUpdates,
     addNewDiscoveredApp,
     bulkUpdateStatus,
     bulkUpdateDate,
     bulkDelete,
-    resetToInitial,
     reAnalyzeWithAi,
   } = useApplications(showToast);
 
@@ -70,11 +72,19 @@ export const App: React.FC = () => {
   const [editingJob, setEditingJob] = useState<JobApplication | null>(null);
 
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
+  const [isCsvImportOpen, setIsCsvImportOpen] = useState(false);
   const [isInboxSyncOpen, setIsInboxSyncOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('theme');
 
   const [deleteConfirmApp, setDeleteConfirmApp] = useState<JobApplication | null>(null);
   const [isBulkDeleteOpen, setIsBulkDeleteOpen] = useState(false);
   const [isBulkDateOpen, setIsBulkDateOpen] = useState(false);
+
+  const handleOpenSettingsModal = (tab: SettingsTab = 'theme') => {
+    setSettingsTab(tab);
+    setIsSettingsOpen(true);
+  };
 
   // Single job modal triggers
   const handleOpenAddModal = (defaultStatus?: JobStatus) => {
@@ -122,13 +132,9 @@ export const App: React.FC = () => {
       <AppHeader
         applicationsCount={applications.length}
         filteredCount={filteredApplications.length}
-        isDark={isDark}
-        onToggleTheme={toggleTheme}
+        onOpenSettings={handleOpenSettingsModal}
         onOpenAddModal={() => handleOpenAddModal()}
         onOpenBatchAdd={() => setIsBatchModalOpen(true)}
-        onOpenInboxSync={() => setIsInboxSyncOpen(true)}
-        onExportCSV={() => exportApplicationsToCSV(applications)}
-        onResetInitial={resetToInitial}
       />
 
       {/* Main Content Area */}
@@ -223,6 +229,14 @@ export const App: React.FC = () => {
         onClose={() => setIsBatchModalOpen(false)}
         existingApplications={applications}
         onBatchAdd={addBatchApplications}
+        onSwitchToCsvImport={() => setIsCsvImportOpen(true)}
+      />
+
+      <CsvImportModal
+        isOpen={isCsvImportOpen}
+        onClose={() => setIsCsvImportOpen(false)}
+        existingApplications={applications}
+        onImportApplications={addBatchApplications}
       />
 
       <InboxSyncModal
@@ -231,6 +245,27 @@ export const App: React.FC = () => {
         applications={applications}
         onApplyStatusUpdates={applyInboxStatusUpdates}
         onAddNewApplication={addNewDiscoveredApp}
+        showToast={showToast}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        initialTab={settingsTab}
+        isDark={isDark}
+        onSetTheme={setTheme}
+        applications={applications}
+        onOpenCsvImport={() => {
+          setIsSettingsOpen(false);
+          setIsCsvImportOpen(true);
+        }}
+        onOpenInboxSync={() => {
+          setIsSettingsOpen(false);
+          setIsInboxSyncOpen(true);
+        }}
+        onImportJson={(apps, mode) => {
+          importApplicationsFromJson(apps, mode);
+        }}
         showToast={showToast}
       />
 

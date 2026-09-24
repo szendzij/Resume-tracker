@@ -3,13 +3,14 @@ import { JobApplication } from '../types';
 import { useBatchAdd } from './batch/useBatchAdd';
 import { BatchFormControls } from './batch/BatchFormControls';
 import { BatchPreviewList } from './batch/BatchPreviewList';
-import { X, ListPlus, AlertTriangle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { X, ListPlus, AlertTriangle, CheckCircle2, ArrowRight, FileSpreadsheet } from 'lucide-react';
 
 interface BatchAddModalProps {
   isOpen: boolean;
   onClose: () => void;
   existingApplications: JobApplication[];
   onBatchAdd: (newApps: JobApplication[], duplicateCount: number) => void;
+  onSwitchToCsvImport?: () => void;
 }
 
 export const BatchAddModal: React.FC<BatchAddModalProps> = ({
@@ -17,6 +18,7 @@ export const BatchAddModal: React.FC<BatchAddModalProps> = ({
   onClose,
   existingApplications,
   onBatchAdd,
+  onSwitchToCsvImport,
 }) => {
   const {
     linksText,
@@ -53,7 +55,7 @@ export const BatchAddModal: React.FC<BatchAddModalProps> = ({
       appliedDate: defaultDate,
       status: defaultStatus,
       location: item.location,
-      skills: item.skills || ['QA', 'Testing'],
+      skills: item.skills || [],
       notes: item.notes || (item.isAiEnriched ? 'Wyodrębniono przez AI Gemini' : ''),
       lastUpdated: new Date().toISOString(),
     }));
@@ -92,6 +94,26 @@ export const BatchAddModal: React.FC<BatchAddModalProps> = ({
 
         {/* Modal Body */}
         <div className="p-6 overflow-y-auto flex-1 space-y-4">
+          {/* CSV Import Switch Callout */}
+          {onSwitchToCsvImport && (
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 rounded-xl flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Posiadasz plik z arkusza Excel / CSV? Skorzystaj z dedykowanego importu CSV.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onSwitchToCsvImport();
+                }}
+                className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-semibold text-[11px] transition-colors cursor-pointer shrink-0 ml-2"
+              >
+                Przejdź do importu CSV
+              </button>
+            </div>
+          )}
+
           {/* Text Area Input */}
           <div>
             <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -101,7 +123,7 @@ export const BatchAddModal: React.FC<BatchAddModalProps> = ({
               rows={5}
               value={linksText}
               onChange={(e) => setLinksText(e.target.value)}
-              placeholder="np.&#10;[Senior QA Engineer - Spyrosoft](https://spyro-soft.com/job/qa)&#10;https://nofluffjobs.com/job/gft-poland-qa&#10;QA Tester: https://justjoin.it/offers/..."
+              placeholder="np.&#10;[Software Engineer - Allegro](https://allegro.pl/praca/...)&#10;https://nofluffjobs.com/job/...&#10;Product Manager: https://justjoin.it/offers/..."
               className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl p-3 text-xs font-mono focus:ring-2 focus:ring-blue-500 outline-none resize-none"
             />
           </div>

@@ -38,7 +38,7 @@ export const InboxManualPasteTab: React.FC<InboxManualPasteTabProps> = ({
             type="text"
             value={manualSubject}
             onChange={(e) => setManualSubject(e.target.value)}
-            placeholder="np. Zaproszenie na rozmowę techniczną (QA)"
+            placeholder="np. Zaproszenie na rozmowę kwalifikacyjną"
             className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>

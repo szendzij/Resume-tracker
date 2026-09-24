@@ -162,7 +162,8 @@ export function heuristicEmailAnalysis(
 
 export async function analyzeEmailsWithAI(
   emails: EmailAnalysisInput[],
-  appList: ApplicationContext[]
+  appList: ApplicationContext[],
+  customKey?: string
 ): Promise<{
   results: AnalyzedEmailResult[];
   analyzedCount: number;
@@ -170,7 +171,7 @@ export async function analyzeEmailsWithAI(
   source: 'gemini' | 'fallback' | 'heuristic';
   warning?: string;
 }> {
-  const ai = getGemini();
+  const ai = getGemini(customKey);
 
   if (!ai) {
     const results = emails.map((e) => heuristicEmailAnalysis(e, appList));

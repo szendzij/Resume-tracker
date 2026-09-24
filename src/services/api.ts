@@ -36,12 +36,46 @@ export interface AnalyzeEmailsResponse {
   warning?: string;
 }
 
+const CUSTOM_GEMINI_KEY_STORAGE = 'job_tracker_gemini_custom_key_v1';
+
+export function getCustomGeminiKey(): string {
+  try {
+    return localStorage.getItem(CUSTOM_GEMINI_KEY_STORAGE) || '';
+  } catch {
+    return '';
+  }
+}
+
+export function setCustomGeminiKey(key: string): void {
+  try {
+    if (key && key.trim()) {
+      localStorage.setItem(CUSTOM_GEMINI_KEY_STORAGE, key.trim());
+    } else {
+      localStorage.removeItem(CUSTOM_GEMINI_KEY_STORAGE);
+    }
+  } catch (e) {
+    console.error('Error saving custom Gemini key to localStorage', e);
+  }
+}
+
+function getAuthHeaders(extraHeaders: Record<string, string> = {}): Record<string, string> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    ...extraHeaders,
+  };
+  const customKey = getCustomGeminiKey();
+  if (customKey) {
+    headers['x-gemini-key'] = customKey;
+  }
+  return headers;
+}
+
 export const api = {
   // Parse single job URL or snippet
   async parseJob(payload: { url?: string; rawText?: string; linkTitle?: string }): Promise<ParseJobResponse> {
     const res = await fetch('/api/parse-job', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
@@ -54,7 +88,7 @@ export const api = {
   async batchParse(payload: { items: Array<{ id: string; url: string; title: string; rawText?: string }> }): Promise<BatchParseResponse> {
     const res = await fetch('/api/batch-parse', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
@@ -116,12 +150,36 @@ export const api = {
   }): Promise<AnalyzeEmailsResponse> {
     const res = await fetch('/api/analyze-emails', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
       throw new Error(`Błąd analizy maili: ${res.statusText}`);
     }
     return res.json();
+  },
+
+  // Gemini API Key status & validation
+  async getGeminiStatus(): Promise<{ hasEnvKey: boolean; model: string }> {
+    const res = await fetch('/api/gemini/status');
+    if (!res.ok) {
+      return { hasEnvKey: false, model: 'gemini-3.8-flash' };
+    }
+    return res.json();
+  },
+
+  async validateGeminiKey(apiKey?: string): Promise<{
+    valid: boolean;
+    model: string;
+    response?: string;
+    error?: string;
+  }> {
+    const res = await fetch('/api/gemini/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey }),
+    });
+    const data = await res.json();
+    return data;
   },
 };

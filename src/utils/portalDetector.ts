@@ -68,7 +68,7 @@ export function cleanJobRole(raw: string): string {
   role = role.replace(/\s*\(m\/f\/nb\)/i, '');
   role = role.replace(/\s*\(k\/m\)/i, '');
   role = role.trim();
-  return role || 'QA Engineer';
+  return role || 'Stanowisko';
 }
 
 /**

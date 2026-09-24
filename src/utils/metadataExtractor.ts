@@ -33,7 +33,7 @@ export function extractMetadataFromTitleAndUrl(
       .replace(/\.html?$/, '');
 
     return {
-      role: cleanSlug.length > 3 ? cleanJobRole(cleanSlug) : 'QA Engineer',
+      role: cleanSlug.length > 3 ? cleanJobRole(cleanSlug) : 'Stanowisko',
       company: portal,
       portal,
     };
@@ -70,7 +70,7 @@ export function extractMetadataFromTitleAndUrl(
   // Case 2: NoFluffJobs format:
   if (cleanTitle.includes('|') && (cleanTitle.toLowerCase().includes('no fluff') || portal === 'NoFluffJobs')) {
     const segments = cleanTitle.split('|').map((s) => s.trim()).filter(Boolean);
-    const roleCandidate = segments[0] || 'QA Engineer';
+    const roleCandidate = segments[0] || 'Stanowisko';
     let companyCandidate = '';
     let locationCandidate = '';
 

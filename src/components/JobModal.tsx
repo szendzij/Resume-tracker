@@ -272,7 +272,7 @@ export const JobModal: React.FC<JobModalProps> = ({
                   required
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
-                  placeholder="np. Senior QA Engineer"
+                  placeholder="np. Software Engineer, Product Manager, QA"
                   className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
@@ -413,7 +413,7 @@ export const JobModal: React.FC<JobModalProps> = ({
                   value={skillInput}
                   onChange={(e) => setSkillInput(e.target.value)}
                   onKeyDown={handleAddSkill}
-                  placeholder="Wpisz np. Playwright, Python, BDD i naciśnij Enter"
+                  placeholder="Wpisz np. React, Python, SQL, Zarządzanie i naciśnij Enter"
                   className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
               </div>
