@@ -100,7 +100,7 @@ export const BatchFormControls: React.FC<BatchFormControlsProps> = ({
             className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 cursor-pointer"
           />
           <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-            Automatycznie pomijaj wykryte duplikaty ofert
+            Automatycznie pomijaj wykryte duplikaty ofert (weryfikacja wg linku URL, firmy, stanowiska i portalu)
           </span>
         </label>
       </div>

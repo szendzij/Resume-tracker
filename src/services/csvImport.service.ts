@@ -1,6 +1,7 @@
 import { JobApplication, JobStatus } from '../types';
 import { ALL_STATUSES } from '../utils/statusConfig';
 import { deducePortalFromUrl } from '../utils/portalDetector';
+import { detectDuplicate, DuplicateCandidate, DuplicateMatchField } from '../utils/duplicateDetector';
 
 export type Delimiter = 'auto' | ';' | ',' | '\t' | '|';
 
@@ -36,6 +37,7 @@ export interface ParsedCsvRow {
   notes?: string;
   isDuplicate: boolean;
   duplicateReason?: string;
+  duplicateFields?: DuplicateMatchField[];
   matchedExistingId?: string;
   isValid: boolean;
   validationError?: string;
@@ -444,44 +446,40 @@ export function normalizeSkills(raw: string): string[] {
 
 /**
  * Checks if a parsed item matches any existing application (Duplicate)
+ * using multi-parameter evaluation (URL, Company, Role, Portal, Date, Location).
  */
 export function checkDuplicate(
   role: string,
   company: string,
   url: string | undefined,
-  existingApplications: JobApplication[]
-): { isDuplicate: boolean; reason?: string; matchedId?: string } {
-  const normRole = role.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const normCompany = company.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cleanUrl = (url || '').trim().toLowerCase().replace(/\/$/, '');
-
-  for (const existing of existingApplications) {
-    // Check identical URL if non-empty
-    if (cleanUrl && existing.url) {
-      const existingUrl = existing.url.trim().toLowerCase().replace(/\/$/, '');
-      if (cleanUrl === existingUrl) {
-        return {
-          isDuplicate: true,
-          reason: `Identyczny link URL (${existing.company})`,
-          matchedId: existing.id,
-        };
-      }
-    }
-
-    // Check same company and role
-    const exNormRole = existing.role.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const exNormCompany = existing.company.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    if (normCompany && exNormCompany && normCompany === exNormCompany && normRole === exNormRole) {
-      return {
-        isDuplicate: true,
-        reason: `Istnieje już aplikacja: ${existing.company} - ${existing.role}`,
-        matchedId: existing.id,
-      };
-    }
+  existingApplications: JobApplication[],
+  extra?: {
+    portal?: string;
+    appliedDate?: string;
+    location?: string;
   }
+): {
+  isDuplicate: boolean;
+  reason?: string;
+  matchedId?: string;
+  matchedFields?: DuplicateMatchField[];
+} {
+  const candidate: DuplicateCandidate = {
+    role,
+    company,
+    url,
+    portal: extra?.portal,
+    appliedDate: extra?.appliedDate,
+    location: extra?.location,
+  };
 
-  return { isDuplicate: false };
+  const result = detectDuplicate(candidate, existingApplications);
+  return {
+    isDuplicate: result.isDuplicate,
+    reason: result.reason,
+    matchedId: result.matchedId,
+    matchedFields: result.matchedFields,
+  };
 }
 
 /**
@@ -525,6 +523,8 @@ export function parseCsvApplications(
 
   const defaultStatus = options?.defaultStatus || 'Wysłana';
   const defaultDate = options?.defaultDate || new Date().toISOString().split('T')[0];
+
+  const processedCsvCandidates: DuplicateCandidate[] = [];
 
   const items: ParsedCsvRow[] = dataRows.map((row, rowIndex) => {
     const rawRow: Record<string, string> = {};
@@ -589,7 +589,41 @@ export function parseCsvApplications(
     const finalDate = normalizeDate(appliedDate, defaultDate);
     const skills = normalizeSkills(skillsRaw);
 
-    const dup = checkDuplicate(finalRole, finalCompany, finalUrl, existingApplications);
+    const candidate: DuplicateCandidate = {
+      id: `csv-row-${rowIndex}`,
+      role: finalRole,
+      company: finalCompany,
+      portal: finalPortal,
+      appliedDate: finalDate,
+      location: location.trim() || undefined,
+      url: finalUrl || undefined,
+    };
+
+    // 1. Check duplicate against existing stored applications
+    const dup = checkDuplicate(finalRole, finalCompany, finalUrl, existingApplications, {
+      portal: finalPortal,
+      appliedDate: finalDate,
+      location: location.trim() || undefined,
+    });
+
+    let isDuplicate = dup.isDuplicate;
+    let duplicateReason = dup.reason;
+    let duplicateFields = dup.matchedFields;
+    let matchedExistingId = dup.matchedId;
+
+    // 2. If not duplicate of existing, check against intra-CSV rows
+    if (!isDuplicate) {
+      const intraCsvCheck = detectDuplicate(candidate, processedCsvCandidates, { isBatchCheck: true });
+      if (intraCsvCheck.isDuplicate) {
+        isDuplicate = true;
+        duplicateReason = intraCsvCheck.reason || 'Zduplikowana pozycja w pliku CSV';
+        duplicateFields = intraCsvCheck.matchedFields;
+      }
+    }
+
+    if (!isDuplicate) {
+      processedCsvCandidates.push(candidate);
+    }
 
     const isValid = Boolean(role.trim() || company.trim() || finalUrl);
     const validationError = isValid ? undefined : 'Brak danych stanowiska, firmy lub linku w wierszu';
@@ -606,9 +640,10 @@ export function parseCsvApplications(
       skills: skills,
       url: finalUrl || undefined,
       notes: notes.trim() || undefined,
-      isDuplicate: dup.isDuplicate,
-      duplicateReason: dup.reason,
-      matchedExistingId: dup.matchedId,
+      isDuplicate,
+      duplicateReason,
+      duplicateFields,
+      matchedExistingId,
       isValid,
       validationError,
       rawRow,

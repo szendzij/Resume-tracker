@@ -77,13 +77,12 @@ describe('server gemini.service', () => {
 
   it('should validate API key returning error when key is empty', async () => {
     const { validateGeminiApiKey } = await import('./gemini.service');
+    const { ENV } = await import('../config/env');
+    const original = ENV.GEMINI_API_KEY;
+    ENV.GEMINI_API_KEY = '';
     const res = await validateGeminiApiKey('');
-    // If ENV.GEMINI_API_KEY is unset or empty, it fails cleanly with validation error
-    if (!process.env.GEMINI_API_KEY) {
-      expect(res.valid).toBe(false);
-      expect(res.error).toBeDefined();
-    } else {
-      expect(res.model).toBe('gemini-3.8-flash');
-    }
+    expect(res.valid).toBe(false);
+    expect(res.error).toBe('Brak klucza API do przetestowania.');
+    ENV.GEMINI_API_KEY = original;
   });
 });

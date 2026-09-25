@@ -222,6 +222,7 @@ export const App: React.FC = () => {
         }}
         onSave={handleSaveModal}
         initialData={editingJob}
+        existingApplications={applications}
       />
 
       <BatchAddModal

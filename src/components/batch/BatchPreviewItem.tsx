@@ -112,9 +112,28 @@ export const BatchPreviewItem: React.FC<BatchPreviewItemProps> = ({
 
           {/* Duplicate warning */}
           {item.isDuplicate && (
-            <div className="mt-2 text-xs flex items-center gap-1.5 text-amber-700 dark:text-amber-400 bg-amber-100/60 dark:bg-amber-950/50 px-2.5 py-1 rounded-md">
-              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
-              <span>{item.duplicateReason || 'Zduplikowana oferta'}</span>
+            <div className="mt-2 text-xs flex flex-wrap items-center justify-between gap-1.5 text-amber-800 dark:text-amber-300 bg-amber-100/70 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/80 px-2.5 py-1.5 rounded-lg">
+              <div className="flex items-center gap-1.5">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                <span className="font-semibold">{item.duplicateReason || 'Zduplikowana oferta'}</span>
+              </div>
+              {item.duplicateFields && item.duplicateFields.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1">
+                  {item.duplicateFields.map((field) => (
+                    <span
+                      key={field}
+                      className="px-1.5 py-0.5 rounded bg-amber-200/90 dark:bg-amber-900/90 text-amber-900 dark:text-amber-200 text-[10px] font-bold"
+                    >
+                      {field === 'url' && '🔗 Link'}
+                      {field === 'company' && '🏢 Firma'}
+                      {field === 'role' && '💼 Stanowisko'}
+                      {field === 'portal' && '🌐 Portal'}
+                      {field === 'appliedDate' && '📅 Data'}
+                      {field === 'location' && '📍 Lokalizacja'}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 

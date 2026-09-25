@@ -518,7 +518,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                     className="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 cursor-pointer"
                   />
                   <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
-                    Automatycznie odznacz wykryte duplikaty ofert (zgodność linku URL lub firmy i stanowiska)
+                    Automatycznie odznacz wykryte duplikaty ofert (weryfikacja wg linku URL, firmy, stanowiska, portalu i daty)
                   </span>
                 </label>
 
@@ -694,8 +694,18 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                             </span>
 
                             {item.isDuplicate && (
-                              <span className="px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
-                                {item.duplicateReason || 'Duplikat'}
+                              <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800 flex-wrap">
+                                <span>⚠️ {item.duplicateReason || 'Duplikat'}</span>
+                                {item.duplicateFields && item.duplicateFields.map((f) => (
+                                  <span key={f} className="px-1 py-0.2 rounded bg-amber-200 dark:bg-amber-900/90 text-amber-950 dark:text-amber-200 text-[9px] font-semibold">
+                                    {f === 'url' && 'Link'}
+                                    {f === 'company' && 'Firma'}
+                                    {f === 'role' && 'Stanowisko'}
+                                    {f === 'portal' && 'Portal'}
+                                    {f === 'appliedDate' && 'Data'}
+                                    {f === 'location' && 'Lokalizacja'}
+                                  </span>
+                                ))}
                               </span>
                             )}
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { JobApplication, JobStatus } from '../types';
 import { INITIAL_JOB_APPLICATIONS } from '../data/initialJobs';
 import { api } from '../services/api';
+import { detectDuplicate } from '../utils/duplicateDetector';
 
 const STORAGE_KEY = 'job_tracker_applications_v1';
 
@@ -148,10 +149,17 @@ export function useApplications(onNotification?: (msg: string) => void) {
         notes: newApp.notes || 'Wykryto automatycznie z korespondencji e-mail.',
         lastUpdated: new Date().toISOString(),
       };
+
+      const dupCheck = detectDuplicate(created, applications);
+      if (dupCheck.isDuplicate) {
+        notify(`Pominięto duplikat z poczty: ${dupCheck.reason || created.company}`);
+        return;
+      }
+
       setApplications((prev) => [created, ...prev]);
       notify(`Dodano ofertę wykrytą z poczty: ${created.company}`);
     },
-    [notify]
+    [applications, notify]
   );
 
   // Bulk status update
@@ -273,28 +281,24 @@ export function useApplications(onNotification?: (msg: string) => void) {
         setApplications(importedApps);
         notify(`Zastąpiono całą bazę danymi z kopii zapasowej (${importedApps.length} ofert).`);
       } else {
-        const existingUrls = new Set(applications.map((a) => a.url).filter(Boolean));
-        const existingKeys = new Set(
-          applications.map((a) => `${(a.company || '').toLowerCase().trim()}|${(a.role || '').toLowerCase().trim()}`)
-        );
-
         const uniqueNew: JobApplication[] = [];
         let duplicateCount = 0;
 
         importedApps.forEach((item) => {
-          const isUrlDup = item.url && existingUrls.has(item.url);
-          const compRoleKey = `${(item.company || '').toLowerCase().trim()}|${(item.role || '').toLowerCase().trim()}`;
-          const isKeyDup = existingKeys.has(compRoleKey);
+          // Check against existing stored applications
+          const existingCheck = detectDuplicate(item, applications);
+          // Check against already processed items in this import batch
+          const intraCheck = !existingCheck.isDuplicate
+            ? detectDuplicate(item, uniqueNew, { isBatchCheck: true })
+            : existingCheck;
 
-          if (isUrlDup || isKeyDup) {
+          if (existingCheck.isDuplicate || intraCheck.isDuplicate) {
             duplicateCount++;
           } else {
             uniqueNew.push({
               ...item,
               id: item.id || `job-json-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
             });
-            if (item.url) existingUrls.add(item.url);
-            existingKeys.add(compRoleKey);
           }
         });
 

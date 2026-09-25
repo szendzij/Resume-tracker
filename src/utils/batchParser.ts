@@ -1,6 +1,7 @@
 import { JobApplication } from '../types';
 import { normalizeJobUrl } from './urlUtils';
 import { extractMetadataFromTitleAndUrl } from './metadataExtractor';
+import { detectDuplicate, DuplicateCandidate } from './duplicateDetector';
 
 export interface ParsedLinkItem {
   id: string;
@@ -18,6 +19,7 @@ export interface ParsedLinkItem {
   source?: 'heuristic' | 'gemini' | 'fallback';
   isDuplicate: boolean;
   duplicateReason?: string;
+  duplicateFields?: string[];
 }
 
 export interface ParseBatchResult {
@@ -30,7 +32,8 @@ export interface ParseBatchResult {
 /**
  * Parses raw text input supporting Markdown links [Title](URL),
  * HTML links <a href="URL">Title</a>, and raw HTTP/HTTPS URLs.
- * Detects duplicates against existing applications and within the batch.
+ * Detects duplicates against existing applications and within the batch
+ * using multi-parameter evaluation (URL, Company, Role, Portal, Date, Location).
  */
 export function parseRawLinksInput(
   rawText: string,
@@ -87,24 +90,7 @@ export function parseRawLinksInput(
     }
   }
 
-  // Pre-calculate normalized URLs for existing applications
-  const existingNormalizedMap = new Map<string, JobApplication>();
-  const existingRoleCompanyMap = new Map<string, JobApplication>();
-
-  for (const app of existingApplications) {
-    if (app.url) {
-      const norm = normalizeJobUrl(app.url);
-      existingNormalizedMap.set(norm, app);
-    }
-    if (app.role && app.company && app.company !== 'Firma' && app.company !== 'Portal pracy') {
-      const key = `${app.company.toLowerCase().trim()}:::${app.role.toLowerCase().trim()}`;
-      existingRoleCompanyMap.set(key, app);
-    }
-  }
-
-  const batchNormalizedSet = new Set<string>();
-  const batchRoleCompanySet = new Set<string>();
-
+  const processedBatchItems: DuplicateCandidate[] = [];
   const items: ParsedLinkItem[] = [];
   let duplicateCount = 0;
 
@@ -113,44 +99,35 @@ export function parseRawLinksInput(
     const normalizedUrl = normalizeJobUrl(raw.url);
     const meta = extractMetadataFromTitleAndUrl(raw.title, raw.url);
 
-    let isDup = false;
-    let dupReason = '';
+    const candidate: DuplicateCandidate = {
+      id: `batch-item-${i}`,
+      role: meta.role,
+      company: meta.company,
+      portal: meta.portal,
+      location: meta.location,
+      url: raw.url,
+    };
 
-    const roleCompanyKey =
-      meta.company && meta.role && meta.company !== 'Firma' && meta.company !== 'Portal pracy'
-        ? `${meta.company.toLowerCase().trim()}:::${meta.role.toLowerCase().trim()}`
-        : '';
+    // Check against existing stored applications first
+    const existingCheck = detectDuplicate(candidate, existingApplications);
+    let isDup = existingCheck.isDuplicate;
+    let dupReason = existingCheck.reason || '';
+    let dupFields = existingCheck.matchedFields;
 
-    // Check 1: Duplicate against existing stored applications by normalized URL
-    if (existingNormalizedMap.has(normalizedUrl)) {
-      const match = existingNormalizedMap.get(normalizedUrl)!;
-      isDup = true;
-      dupReason = `Oferta z tym linkiem już istnieje w trackerze (${match.company} - ${match.role})`;
-    }
-    // Check 2: Duplicate against existing stored applications by Role + Company
-    else if (roleCompanyKey && existingRoleCompanyMap.has(roleCompanyKey)) {
-      const match = existingRoleCompanyMap.get(roleCompanyKey)!;
-      isDup = true;
-      dupReason = `Aplikacja dla ${match.company} (${match.role}) już znajduje się w bazie`;
-    }
-    // Check 3: Duplicate within the pasted batch itself by normalized URL
-    else if (batchNormalizedSet.has(normalizedUrl)) {
-      isDup = true;
-      dupReason = 'Zduplikowany link na wklejonej liście (pominięto)';
-    }
-    // Check 4: Duplicate within the pasted batch itself by Role + Company
-    else if (roleCompanyKey && batchRoleCompanySet.has(roleCompanyKey)) {
-      isDup = true;
-      dupReason = `Zduplikowane stanowisko w tej samej firmie na liście (${meta.company})`;
+    // If not duplicate in existing, check against intra-batch items
+    if (!isDup) {
+      const batchCheck = detectDuplicate(candidate, processedBatchItems, { isBatchCheck: true });
+      if (batchCheck.isDuplicate) {
+        isDup = true;
+        dupReason = batchCheck.reason || 'Zduplikowana pozycja na liście importu';
+        dupFields = batchCheck.matchedFields;
+      }
     }
 
     if (isDup) {
       duplicateCount++;
     } else {
-      batchNormalizedSet.add(normalizedUrl);
-      if (roleCompanyKey) {
-        batchRoleCompanySet.add(roleCompanyKey);
-      }
+      processedBatchItems.push(candidate);
     }
 
     items.push({
@@ -165,6 +142,7 @@ export function parseRawLinksInput(
       location: meta.location,
       isDuplicate: isDup,
       duplicateReason: dupReason,
+      duplicateFields: dupFields,
     });
   }
 
@@ -185,60 +163,46 @@ export function recalculateBatchDuplicates(
   currentItems: ParsedLinkItem[],
   existingApplications: JobApplication[] = []
 ): ParseBatchResult {
-  const existingNormalizedMap = new Map<string, JobApplication>();
-  const existingRoleCompanyMap = new Map<string, JobApplication>();
-
-  for (const app of existingApplications) {
-    if (app.url) {
-      const norm = normalizeJobUrl(app.url);
-      if (norm) existingNormalizedMap.set(norm, app);
-    }
-    if (app.company && app.role) {
-      const key = `${app.company.toLowerCase().trim()}:::${app.role.toLowerCase().trim()}`;
-      existingRoleCompanyMap.set(key, app);
-    }
-  }
-
-  const batchNormalizedSet = new Set<string>();
-  const batchRoleCompanySet = new Set<string>();
+  const processedBatchItems: DuplicateCandidate[] = [];
   let duplicateCount = 0;
 
-  const updatedItems = currentItems.map((item) => {
-    let isDup = false;
-    let dupReason = '';
+  const updatedItems = currentItems.map((item, idx) => {
+    const candidate: DuplicateCandidate = {
+      id: item.id || `recalc-item-${idx}`,
+      role: item.role,
+      company: item.company,
+      portal: item.portal,
+      location: item.location,
+      url: item.url,
+    };
 
-    const roleCompanyKey =
-      item.company && item.role && item.company !== 'Firma' && item.company !== 'Portal pracy'
-        ? `${item.company.toLowerCase().trim()}:::${item.role.toLowerCase().trim()}`
-        : '';
+    // Check against existing tracker applications
+    const existingCheck = detectDuplicate(candidate, existingApplications);
+    let isDup = existingCheck.isDuplicate;
+    let dupReason = existingCheck.reason || '';
+    let dupFields = existingCheck.matchedFields;
 
-    if (item.normalizedUrl && existingNormalizedMap.has(item.normalizedUrl)) {
-      const match = existingNormalizedMap.get(item.normalizedUrl)!;
-      isDup = true;
-      dupReason = `Oferta z tym linkiem już istnieje w trackerze (${match.company} - ${match.role})`;
-    } else if (roleCompanyKey && existingRoleCompanyMap.has(roleCompanyKey)) {
-      const match = existingRoleCompanyMap.get(roleCompanyKey)!;
-      isDup = true;
-      dupReason = `Aplikacja dla ${match.company} (${match.role}) już znajduje się w bazie`;
-    } else if (item.normalizedUrl && batchNormalizedSet.has(item.normalizedUrl)) {
-      isDup = true;
-      dupReason = 'Zduplikowany link na wklejonej liście (pominięto)';
-    } else if (roleCompanyKey && batchRoleCompanySet.has(roleCompanyKey)) {
-      isDup = true;
-      dupReason = `Zduplikowane stanowisko w tej samej firmie na liście (${item.company})`;
+    // Check intra-batch items
+    if (!isDup) {
+      const batchCheck = detectDuplicate(candidate, processedBatchItems, { isBatchCheck: true });
+      if (batchCheck.isDuplicate) {
+        isDup = true;
+        dupReason = batchCheck.reason || 'Zduplikowana pozycja na liście importu';
+        dupFields = batchCheck.matchedFields;
+      }
     }
 
     if (isDup) {
       duplicateCount++;
     } else {
-      if (item.normalizedUrl) batchNormalizedSet.add(item.normalizedUrl);
-      if (roleCompanyKey) batchRoleCompanySet.add(roleCompanyKey);
+      processedBatchItems.push(candidate);
     }
 
     return {
       ...item,
       isDuplicate: isDup,
       duplicateReason: dupReason,
+      duplicateFields: dupFields,
     };
   });
 
