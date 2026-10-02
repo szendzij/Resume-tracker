@@ -148,6 +148,9 @@ bun run clean
 
 ### Docker Commands
 ```bash
+# Ensure local volume directory has write permissions for non-root container user (UID 1000: bun)
+mkdir -p data && sudo chown -R 1000:1000 data && sudo chmod -R 775 data
+
 # Build and start container in the background
 docker compose up -d --build
 
@@ -185,7 +188,8 @@ docker compose down
 - In production (`NODE_ENV=production`), `server.ts` serves static assets from `path.join(process.cwd(), 'dist')`.
 - The server listens internally on `0.0.0.0:3000`. The host port defaults to **3050** (`${HOST_PORT:-3050}:3000`, `APP_URL=http://localhost:3050`) to avoid conflicts on self-hosted Proxmox nodes.
 - The `/api/health` endpoint is used by Docker `HEALTHCHECK`. Keep this endpoint fast and free of external dependencies.
-- Persistent SQLite storage is mounted via Docker volume: `./data:/app/data`. The runner container runs as user `bun` and must retain ownership of `/app/data`.
+- **Persistent SQLite storage & permissions**: Storage is mounted via Docker volume: `./data:/app/data`. The runner container runs as user `bun` (UID 1000). Host `./data` must be writable by UID 1000 (`sudo chown -R 1000:1000 data && sudo chmod -R 775 data`) to prevent SQLite `Error code 14: Unable to open the database file`.
+- **Multi-stage Bun builds**: Avoid running `bun install --production` in the runner stage — Bun enforces frozen lockfiles during dependency filtering even with `--no-frozen-lockfile`. Instead, install all dependencies in the builder stage and directly copy `node_modules` (`COPY --from=builder /app/node_modules ./node_modules`).
 
 ### 6. Database & Persistence (Prisma + SQLite)
 - The persistent SQLite database resides in `./data/tracker.db` (local dev) or `/app/data/tracker.db` (Docker container).
