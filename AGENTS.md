@@ -29,6 +29,7 @@ Key capabilities:
 
 ### Backend
 - **Framework**: Express 4 (`express`)
+- **Database & ORM**: SQLite (`tracker.db`) via Prisma ORM (`@prisma/client` v6.4.1, `prisma/schema.prisma`)
 - **Language**: TypeScript executed via `tsx` in development, bundled with `esbuild` for production
 - **AI SDK**: `@google/genai` (Gemini API)
 - **Email / Scraper**: Native `fetch` with AbortController, regex heuristics, OAuth popup handlers
@@ -55,17 +56,22 @@ Resume-tracker/
 ├── .dockerignore                # Build context exclusion list
 ├── .env.example                 # Template for required and optional environment variables
 │
+├── prisma/
+│   └── schema.prisma            # Prisma SQLite datasource & Application model definition
+│
 ├── server/                      # Backend implementation
 │   ├── config/
 │   │   └── env.ts               # Environment variable parsing and defaults (ENV object)
 │   ├── data/
 │   │   └── sample-emails.ts     # Sample emails for testing inbox sync offline
 │   ├── routes/
+│   │   ├── applications.routes.ts # Applications CRUD & batch endpoints (/api/applications)
 │   │   ├── auth.routes.ts       # OAuth initiation & popup callback handlers (Outlook, Gmail)
 │   │   ├── emails.routes.ts     # Email sync, analysis, and status detection endpoints
 │   │   ├── gemini.routes.ts     # Gemini direct endpoints & proxy
 │   │   └── jobs.routes.ts       # Job parsing, batch processing, scraping endpoints
 │   └── services/
+│       ├── db.service.ts        # Prisma database operations (CRUD, batch, safe JSON mapping)
 │       ├── email-analyzer.service.ts # LLM + heuristic email classification
 │       ├── email-sync.service.ts     # Graph API / Gmail API fetching logic
 │       ├── gemini.service.ts         # Gemini client wrapper & prompts
@@ -177,5 +183,13 @@ docker compose down
 
 ### 5. Docker & Production Environment
 - In production (`NODE_ENV=production`), `server.ts` serves static assets from `path.join(process.cwd(), 'dist')`.
-- The server must listen on `0.0.0.0` (not `127.0.0.1`) to ensure accessibility inside Docker containers.
+- The server listens internally on `0.0.0.0:3000`. The host port defaults to **3050** (`${HOST_PORT:-3050}:3000`, `APP_URL=http://localhost:3050`) to avoid conflicts on self-hosted Proxmox nodes.
 - The `/api/health` endpoint is used by Docker `HEALTHCHECK`. Keep this endpoint fast and free of external dependencies.
+- Persistent SQLite storage is mounted via Docker volume: `./data:/app/data`. The runner container runs as user `bun` and must retain ownership of `/app/data`.
+
+### 6. Database & Persistence (Prisma + SQLite)
+- The persistent SQLite database resides in `./data/tracker.db` (local dev) or `/app/data/tracker.db` (Docker container).
+- Whenever modifying `prisma/schema.prisma`, always run `npx prisma generate` to rebuild `@prisma/client`.
+- When adding new columns or changing schema in development, use `npx prisma db push`.
+- Nested structured arrays (`skills`, `timeline`, `contacts`) are serialized to JSON text columns in SQLite. Always use `safeJsonParse` fallbacks in `server/services/db.service.ts` to prevent runtime crashes on malformed data.
+- Frontend sync (`useApplications.ts`) transparently hydrates from `GET /api/applications` and bootstraps `localStorage` data to the backend database upon initial connection.
