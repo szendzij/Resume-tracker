@@ -58,5 +58,39 @@ describe('server heuristics.service', () => {
       expect(job.role).toBe('Test Automation Engineer');
       expect(job.location).toBe('Wrocław');
     });
+
+    it('should extract company, role, salary, workType and skills from theprotocol.it rawText', () => {
+      const rawText = `
+        Senior IT Automation Tester (Python + Robot Framework)
+        Firma: OPTIVEUM SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ
+        Gdańsk, pomorskie
+        120 - 120 zł netto (+ VAT) / godz.
+        tryb pracy: hybrydowa
+        Wymagania: Python, Robot Framework, XML, CSV, JSON, Microsoft SQL Server, SQL, Jenkins, Bamboo, Git, Atlassian, Jira, Confluence
+      `;
+
+      const job = extractHeuristicJob(
+        'https://theprotocol.it/filtry/qa/praca?kw=Senior%20IT%20Automation%20Tester',
+        'Senior IT Automation Tester (Python + Robot Framework) - The Protocol',
+        'The Protocol',
+        undefined,
+        rawText
+      );
+
+      expect(job.role).toBe('Senior IT Automation Tester (Python + Robot Framework)');
+      expect(job.company).toBe('Optiveum');
+      expect(job.location).toBe('Gdańsk, pomorskie');
+      expect(job.salary).toBe('120 - 120 zł netto (+ VAT) / godz.');
+      expect(job.workType).toBe('Hybrydowo');
+      expect(job.portal).toBe('The Protocol');
+      expect(job.skills).toContain('Python');
+      expect(job.skills).toContain('Robot Framework');
+      expect(job.skills).toContain('SQL');
+      expect(job.skills).toContain('Jenkins');
+      expect(job.skills).toContain('Git');
+      expect(job.skills).toContain('Jira');
+      // Must NEVER set company to portal
+      expect(job.company).not.toBe('The Protocol');
+    });
   });
 });

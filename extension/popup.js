@@ -412,10 +412,12 @@ export function addSkillChip(skillName) {
  * @param {string} workType
  */
 export function setActiveWorkType(workType) {
-  state.activeWorkType = workType;
+  let normalized = workType;
+  if (normalized === 'Stacjonarnie') normalized = 'Biuro';
+  state.activeWorkType = normalized;
   const pills = document.querySelectorAll('#work-type-group .pill-btn');
   pills.forEach((pill) => {
-    if (pill.getAttribute('data-value') === workType) {
+    if (pill.getAttribute('data-value') === normalized) {
       pill.classList.add('active');
     } else {
       pill.classList.remove('active');
@@ -430,11 +432,11 @@ export function setActiveWorkType(workType) {
  */
 export function detectAndSetWorkType(location, notes) {
   const combined = `${location || ''} ${notes || ''}`.toLowerCase();
-  if (combined.includes('zdalnie') || combined.includes('remote')) {
-    setActiveWorkType('Zdalnie');
-  } else if (combined.includes('hybryd')) {
+  if (combined.includes('hybryd')) {
     setActiveWorkType('Hybrydowo');
-  } else if (combined.includes('biuro') || combined.includes('on-site') || combined.includes('office')) {
+  } else if (combined.includes('zdalnie') || combined.includes('remote')) {
+    setActiveWorkType('Zdalnie');
+  } else if (combined.includes('biuro') || combined.includes('on-site') || combined.includes('office') || combined.includes('stacjonarnie')) {
     setActiveWorkType('Biuro');
   }
 }
@@ -839,11 +841,28 @@ export async function initPopup() {
     const statusSelect = document.getElementById('field-status');
     const notesTextarea = document.getElementById('field-notes');
 
+    const deducedPortal = deducePortalFromUrl(extracted.url);
+    const portalVal = parsedData.portal || deducedPortal;
+    let finalCompany = (parsedData.company || '').trim();
+
+    // Safeguard: Never populate portal name as company
+    if (
+      finalCompany &&
+      portalVal &&
+      (finalCompany.toLowerCase() === portalVal.toLowerCase() ||
+        finalCompany.toLowerCase() === 'the protocol' ||
+        finalCompany.toLowerCase() === 'the:protocol' ||
+        finalCompany.toLowerCase() === 'nofluffjobs' ||
+        finalCompany.toLowerCase() === 'pracuj.pl')
+    ) {
+      finalCompany = '';
+    }
+
     if (roleInput) roleInput.value = parsedData.role || extracted.title || '';
-    if (companyInput) companyInput.value = parsedData.company || '';
+    if (companyInput) companyInput.value = finalCompany;
     if (locationInput) locationInput.value = parsedData.location || '';
     if (salaryInput) salaryInput.value = parsedData.salary || '';
-    if (portalInput) portalInput.value = parsedData.portal || deducePortalFromUrl(extracted.url);
+    if (portalInput) portalInput.value = portalVal;
     if (statusSelect) statusSelect.value = parsedData.status || 'Do zaaplikowania';
     if (notesTextarea) notesTextarea.value = parsedData.notes || '';
 
@@ -852,12 +871,16 @@ export async function initPopup() {
     renderSkillChips();
 
     // Work type
-    detectAndSetWorkType(parsedData.location, parsedData.notes);
+    if (parsedData.workType) {
+      setActiveWorkType(parsedData.workType);
+    } else {
+      detectAndSetWorkType(parsedData.location, parsedData.notes);
+    }
 
     // Duplicate detection
     const duplicate = findDuplicate(existingApps, {
       url: extracted.url,
-      company: parsedData.company,
+      company: finalCompany,
       role: parsedData.role,
     });
 

@@ -46,7 +46,14 @@ export function deducePortalAndHints(urlStr: string): PortalDeductionResult {
     } else if (host.includes('theprotocol.it')) {
       portal = 'The Protocol';
       if (pathname.includes('warszawa')) hints.location = 'Warszawa';
-      else if (pathname.includes('krakow')) hints.location = 'Kraków';
+      else if (pathname.includes('krakow') || pathname.includes('kraków')) hints.location = 'Kraków';
+      else if (pathname.includes('wroclaw') || pathname.includes('wrocław')) hints.location = 'Wrocław';
+      else if (pathname.includes('gdansk') || pathname.includes('gdańsk')) hints.location = 'Gdańsk';
+      else if (pathname.includes('poznan') || pathname.includes('poznań')) hints.location = 'Poznań';
+      else if (pathname.includes('katowice')) hints.location = 'Katowice';
+      else if (pathname.includes('lodz') || pathname.includes('łódź')) hints.location = 'Łódź';
+      else if (pathname.includes('remote') || pathname.includes('zdalnie')) hints.location = 'Remote';
+      if (pathname.includes('optiveum')) hints.company = 'Optiveum';
     } else if (host.includes('thesmartjobs.com')) {
       portal = 'TheSmartJobs';
     } else if (host.includes('spyro-soft.com')) {
@@ -72,48 +79,151 @@ export function deducePortalAndHints(urlStr: string): PortalDeductionResult {
   }
 }
 
+function cleanCompanyName(raw: string): string {
+  let cleaned = raw.trim();
+  cleaned = cleaned.replace(/^(?:Firma|Pracodawca|Company):\s*/i, '');
+  cleaned = cleaned.replace(/\s+SPÓŁKA Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ/i, '');
+  cleaned = cleaned.replace(/\s+SP\.?\s*Z\s*O\.?\s*O\.?/i, '');
+  cleaned = cleaned.replace(/\s+S\.A\./i, '');
+  if (cleaned === cleaned.toUpperCase() && cleaned.length > 2) {
+    cleaned = cleaned.charAt(0).toUpperCase() + cleaned.slice(1).toLowerCase();
+  }
+  return cleaned.trim();
+}
+
 /**
- * Fallback metadata extractor from linkTitle & known URLs
+ * Fallback metadata extractor from rawText, linkTitle & known URLs
  */
 export function extractHeuristicJob(
   url?: string,
   linkTitle?: string,
   portal?: string,
-  hints?: PortalHints
+  hints?: PortalHints,
+  rawText?: string
 ) {
-  let role = hints?.role || 'Inżynier ds. Jakości (QA)';
-  let company = hints?.company || portal || 'Firma';
-  let location = hints?.location || 'Polska / Remote';
+  let role = hints?.role || '';
+  let company = hints?.company || '';
+  let location = hints?.location || '';
+  let salary = '';
+  let workType = '';
+  const skills: string[] = [];
 
+  // 1. Role, company & location from linkTitle
   if (linkTitle) {
-    const cleanTitle = String(linkTitle).trim();
+    let cleanTitle = String(linkTitle).trim();
+    // Strip common portal name suffixes
+    cleanTitle = cleanTitle.replace(
+      /\s*[-|–]\s*(The Protocol|the:protocol|No Fluff Jobs|NoFluffJobs|Pracuj\.pl|LinkedIn|Just Join IT|Solid\.Jobs|Bulldogjob).*$/i,
+      ''
+    );
+
     if (cleanTitle.includes(' | ')) {
       const segs = cleanTitle.split(' | ').map((s) => s.trim()).filter(Boolean);
       if (segs.length >= 2) {
         role = segs[0].replace(/^(Praca|Oferta pracy)\s+/i, '');
-        company = segs[1];
-        if (segs[2] && /^(Remote|Zdalnie|Wrocław|Warszawa|Kraków|Poznań)$/i.test(segs[2])) {
+        if (!company) company = cleanCompanyName(segs[1]);
+        if (segs[2] && !location) {
           location = segs[2];
         }
       }
     } else if (cleanTitle.includes(' - ') || cleanTitle.includes(' – ')) {
-      const parts = cleanTitle.split(/\s+[-–]\s+/);
+      const parts = cleanTitle.split(/\s+[-–]\s+/).map((s) => s.trim()).filter(Boolean);
       if (parts.length >= 2) {
         role = parts[0].replace(/^(Praca|Oferta pracy)\s+/i, '');
-        company = parts[1];
+        if (!company) company = cleanCompanyName(parts[1]);
       }
     } else if (cleanTitle.includes(', ')) {
-      const parts = cleanTitle.split(', ');
+      const parts = cleanTitle.split(', ').map((s) => s.trim()).filter(Boolean);
       if (parts.length >= 2) {
         role = parts[0].replace(/^(Praca|Oferta pracy)\s+/i, '');
-        company = parts[1];
-        if (parts[2]) location = parts[2];
+        if (!company) company = cleanCompanyName(parts[1]);
+        if (parts[2] && !location) location = parts[2];
       }
     } else {
-      role = cleanTitle;
+      role = cleanTitle.replace(/^(Praca|Oferta pracy)\s+/i, '');
     }
   }
 
+  // 2. Extract rich details from rawText if available
+  if (rawText) {
+    // Company from rawText (e.g. "Firma: OPTIVEUM SPÓŁKA Z O.O.")
+    const compMatch = rawText.match(/(?:Firma|Pracodawca|Company):\s*([^\n\r,]+)/i);
+    if (compMatch && compMatch[1]) {
+      company = cleanCompanyName(compMatch[1]);
+    }
+
+    // Role from rawText if not yet set
+    if (!role) {
+      const roleMatch = rawText.match(/(?:Stanowisko|Rola):\s*([^\n\r]+)/i);
+      if (roleMatch && roleMatch[1]) {
+        role = roleMatch[1].trim();
+      } else {
+        const lines = rawText
+          .split('\n')
+          .map((l) => l.trim())
+          .filter((l) => l.length > 3 && !/^(dla kandydatów|dla pracodawców|aplikuj|zapisz|menu|logowanie)/i.test(l));
+        if (lines[0] && lines[0].length < 80) {
+          role = lines[0];
+        }
+      }
+    }
+
+    // Salary from rawText
+    const lines = rawText.split('\n');
+    for (const line of lines) {
+      const salaryMatch = line.match(/(?:^|[^\d])(\d+[\s\d]*\s*[-–]\s*\d+[\s\d]*\s*(?:zł|PLN|EUR|USD|netto|brutto|godz|\/h)[^\n\r]*)/i);
+      if (salaryMatch && salaryMatch[1]) {
+        salary = salaryMatch[1].trim();
+        break;
+      }
+    }
+
+    // Work type
+    if (/tryb pracy:\s*hybryd|hybrydow/i.test(rawText)) {
+      workType = 'Hybrydowo';
+    } else if (/tryb pracy:\s*zdaln|zdalnie|remote/i.test(rawText)) {
+      workType = 'Zdalnie';
+    } else if (/tryb pracy:\s*stacjonar|biuro/i.test(rawText)) {
+      workType = 'Stacjonarnie';
+    }
+
+    // Location from rawText
+    if (!location) {
+      const explicitLocMatch = rawText.match(/(?:Lokalizacja|Lokalizacje|Location):\s*([^\n\r]+)/i);
+      if (explicitLocMatch && explicitLocMatch[1]) {
+        location = explicitLocMatch[1].trim();
+      } else {
+        const locMatch = rawText.match(/\|\s*([A-ZĄĆĘŁŃÓŚŹŻ][a-ząćęłńóśźż]+(?:\s*,\s*[a-ząćęłńóśźż]+)?)\s*(?:wiele lokalizacji|\d+ office days|\||\n|$)/i);
+        if (locMatch && locMatch[1]) {
+          location = locMatch[1].trim();
+        } else {
+          const cityWithRegionMatch = rawText.match(/\b(Gdańsk|Wrocław|Warszawa|Kraków|Poznań|Katowice|Łódź|Szczecin|Lublin|Białystok|Gdynia|Sopot)(?:,\s*[a-ząćęłńóśźż]+)?\b/i);
+          if (cityWithRegionMatch && cityWithRegionMatch[0]) {
+            location = cityWithRegionMatch[0].trim();
+          }
+        }
+      }
+    }
+
+    // Known skills scanner
+    const knownSkills = [
+      'Python', 'Robot Framework', 'Selenium', 'Playwright', 'Cypress', 'Appium',
+      'Java', 'JavaScript', 'TypeScript', 'C#', '.NET', 'SQL', 'Microsoft SQL Server',
+      'PostgreSQL', 'MySQL', 'MongoDB', 'Docker', 'Kubernetes', 'AWS', 'Azure',
+      'GCP', 'Git', 'GitHub', 'GitLab', 'Jira', 'Confluence', 'Jenkins', 'Bamboo',
+      'Postman', 'REST', 'API', 'BDD', 'TDD', 'Cucumber', 'XML', 'JSON', 'CSV',
+      'Linux', 'CI/CD', 'TestRail', 'Zephyr', 'QA', 'Testing'
+    ];
+
+    for (const sk of knownSkills) {
+      const regex = new RegExp(`\\b${sk.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      if (regex.test(rawText) && !skills.includes(sk)) {
+        skills.push(sk);
+      }
+    }
+  }
+
+  // 3. Known test fixtures in URL
   if (url) {
     if (url.includes('sportano-com-test-automation-engineer')) {
       company = 'Sportano.com';
@@ -154,13 +264,20 @@ export function extractHeuristicJob(
     }
   }
 
+  // Fallbacks: NEVER set company to portal!
+  if (!company || (portal && company.toLowerCase() === portal.toLowerCase())) {
+    company = hints?.company || 'Firma';
+  }
+
   return {
-    role,
-    company,
-    location,
+    role: role || 'Inżynier ds. Jakości (QA)',
+    company: company || 'Firma',
+    location: location || 'Polska / Remote',
+    salary: salary || '',
+    workType: workType || (location.toLowerCase().includes('remote') || location.toLowerCase().includes('zdaln') ? 'Zdalnie' : ''),
     portal: portal || 'Inny portal',
-    skills: ['QA', 'Testing', 'Automation'],
-    notes: 'Dane wyodrębnione z linku i tytułu oferty.',
+    skills: skills.length > 0 ? skills : ['QA', 'Testing', 'Automation'],
+    notes: rawText ? 'Dane wyodrębnione heurystycznie z treści oferty.' : 'Dane wyodrębnione z linku i tytułu oferty.',
     source: 'heuristic' as const,
   };
 }

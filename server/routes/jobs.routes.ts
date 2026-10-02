@@ -21,7 +21,7 @@ jobsRouter.post(['/parse-job', '/jobs/parse-job'], async (req: Request, res: Res
   const ai = getGemini(customKey);
 
   if (!ai) {
-    const heuristicJob = extractHeuristicJob(url, linkTitle, portal, hints);
+    const heuristicJob = extractHeuristicJob(url, linkTitle, portal, hints, rawText);
     res.json(heuristicJob);
     return;
   }
@@ -40,20 +40,19 @@ jobsRouter.post(['/parse-job', '/jobs/parse-job'], async (req: Request, res: Res
       role: parsedJson.role || hints.role || 'QA Engineer',
       company: parsedJson.company || hints.company || 'Nieznana firma',
       location: parsedJson.location || hints.location || 'Polska / Remote',
+      salary: parsedJson.salary || '',
+      workType: parsedJson.workType || '',
       portal: parsedJson.portal || portal,
       skills: Array.isArray(parsedJson.skills) ? parsedJson.skills : [],
       notes: parsedJson.notes || '',
       source: 'gemini',
     });
   } catch (error: any) {
-    console.error('Gemini extraction error:', error);
+    console.error('Gemini extraction error:', error?.message || error);
+    const heuristicJob = extractHeuristicJob(url, linkTitle, portal, hints, rawText);
     res.json({
-      role: hints.role || 'QA Engineer',
-      company: hints.company || portal,
-      location: hints.location || 'Polska / Remote',
-      portal,
-      skills: ['QA'],
-      notes: 'Pobrano podstawowe dane na podstawie adresu URL.',
+      ...heuristicJob,
+      notes: heuristicJob.notes ? `${heuristicJob.notes} (AI fallback)` : 'Pobrano dane heurystycznie z oferty.',
       source: 'fallback',
     });
   }

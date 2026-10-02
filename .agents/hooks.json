@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node scripts/hook-pre-command.cjs",
+            "command": "node ../scripts/hook-pre-command.cjs",
             "timeout": 10
           }
         ]

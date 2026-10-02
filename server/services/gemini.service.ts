@@ -97,47 +97,76 @@ export interface ParseJobParams {
 export async function parseSingleJobWithGemini(ai: GoogleGenAI, params: ParseJobParams) {
   const { url, portal, linkTitle, hints, rawText, pageExcerpt } = params;
 
-  const prompt = `Analizujesz ofertę pracy, na którą użytkownik wysłał CV.
+  const prompt = `Analizujesz ofertę pracy, na którą użytkownik wysłał CV lub którą chce zapisać.
 Link oferty: ${url || 'Brak linku'}
-Portal: ${portal}
-${linkTitle ? `Tytuł z linku (np. Markdown [Tytuł](link)): "${linkTitle}"` : ''}
+Portal ogłoszeniowy: ${portal}
+${linkTitle ? `Tytuł z linku / strony: "${linkTitle}"` : ''}
 Wskazówki z linku: ${JSON.stringify(hints)}
-${rawText ? `Dodatkowy tekst oferty podany przez użytkownika:\n${rawText}` : ''}
+${rawText ? `Treść oferty / zaznaczony tekst ze strony:\n${rawText}` : ''}
 ${pageExcerpt ? `Pobrany fragment strony oferty:\n${pageExcerpt}` : ''}
 
 Zidentyfikuj i wyodrębnij w języku polskim:
-1. "role": Dokładna nazwa stanowiska/roli (np. "Senior QA Engineer", "Lead Test Automation Engineer", "QA Engineer - BDD Automation", "Automation Testing Manager").
-2. "company": Nazwa firmy/pracodawcy (np. "Spyrosoft", "GFT Poland", "Sportano.com", "Kadromierz", "Kuehne+Nagel", "PPG", "SoftServe", "Antal", "gfcomply SARL").
-3. "location": Lokalizacja (np. "Wrocław", "Warszawa", "Kraków", "Remote", "Hybrydowo").
-4. "portal": Nazwa portalu (np. "LinkedIn", "NoFluffJobs", "Just Join IT", "Pracuj.pl", "The Protocol", "Kuehne+Nagel Careers" itp.).
-5. "skills": Tablica głównych technologii/kompetencji (np. ["Selenium", "Python", "Playwright", "BDD", "API", "Jira"]).
-6. "notes": Krótka uwaga lub podsumowanie (max 1 zdanie).`;
+1. "role": Dokładna nazwa stanowiska/roli z nagłówka oferty (np. "Senior IT Automation Tester (Python + Robot Framework)", "Senior QA Engineer", "Lead Test Automation Engineer", "QA Engineer - BDD Automation"). Usuń dopiski typu "Oferta pracy", "(k/m)", "(m/f/d)".
+2. "company": Rzeczywista nazwa zatrudniającej firmy/pracodawcy (np. "Optiveum", "Spyrosoft", "GFT Poland", "Sportano.com", "Kadromierz", "Kuehne+Nagel", "PPG", "SoftServe"). 
+   BARDZO WAŻNE: NIGDY nie wpisuj nazwy portalu ogłoszeniowego (np. "The Protocol", "Pracuj.pl", "NoFluffJobs", "LinkedIn", "Just Join IT") jako firmy! Szukaj etykiety "Firma:", "Pracodawca:" lub nazwy w tytule/treści.
+3. "location": Lokalizacja miasta lub kraju (np. "Gdańsk", "Wrocław", "Warszawa", "Kraków", "Polska").
+4. "salary": Dokładne wynagrodzenie i stawka jeśli podana w ofercie (np. "120 - 120 zł netto (+ VAT) / godz.", "18 000 - 24 000 PLN", "120 zł/h B2B"). Jeśli brak, wpisz pusty ciąg "".
+5. "workType": Tryb świadczenia pracy: dokładnie jedno z: "Zdalnie", "Hybrydowo" lub "Stacjonarnie". Jeśli oferta wspomina o pracy hybrydowej (np. "tryb pracy: hybrydowa"), wybierz "Hybrydowo".
+6. "portal": Nazwa portalu (np. "The Protocol", "LinkedIn", "NoFluffJobs", "Just Join IT", "Pracuj.pl" itp.).
+7. "skills": Tablica głównych wymaganych technologii i narzędzi wymienionych w ofercie (np. ["Python", "Robot Framework", "SQL", "Jenkins", "Git", "Jira", "Selenium"]).
+8. "notes": Krótka notatka podsumowująca kluczowe parametry oferty (max 1 zdanie).`;
 
-  const response = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
-    contents: prompt,
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          role: { type: Type.STRING, description: 'Nazwa stanowiska' },
-          company: { type: Type.STRING, description: 'Nazwa firmy' },
-          location: { type: Type.STRING, description: 'Lokalizacja pracy' },
-          portal: { type: Type.STRING, description: 'Portal rekrutacyjny lub źródło' },
-          skills: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: 'Główne wymagane umiejętności lub technologie',
+  const maxAttempts = 3;
+  let lastError: any = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await ai.models.generateContent({
+        model: 'gemini-3.8-flash',
+        contents: prompt,
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              role: { type: Type.STRING, description: 'Nazwa stanowiska' },
+              company: { type: Type.STRING, description: 'Nazwa firmy (nie portalu!)' },
+              location: { type: Type.STRING, description: 'Lokalizacja pracy' },
+              salary: { type: Type.STRING, description: 'Wynagrodzenie jeśli podane w ofercie' },
+              workType: { type: Type.STRING, description: 'Tryb pracy: "Zdalnie", "Hybrydowo" lub "Stacjonarnie"' },
+              portal: { type: Type.STRING, description: 'Portal rekrutacyjny lub źródło' },
+              skills: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+                description: 'Główne wymagane umiejętności lub technologie',
+              },
+              notes: { type: Type.STRING, description: 'Krótkie podsumowanie lub notatka' },
+            },
+            required: ['role', 'company', 'portal'],
           },
-          notes: { type: Type.STRING, description: 'Krótkie podsumowanie lub notatka' },
         },
-        required: ['role', 'company', 'portal'],
-      },
-    },
-  });
+      });
 
-  return JSON.parse(response.text || '{}');
+      return JSON.parse(response.text || '{}');
+    } catch (err: any) {
+      lastError = err;
+      const isTransient =
+        err?.status === 503 ||
+        err?.status === 429 ||
+        err?.message?.includes('503') ||
+        err?.message?.includes('high demand') ||
+        err?.message?.includes('rate limit');
+
+      if (isTransient && attempt < maxAttempts) {
+        const delay = attempt * 800;
+        await new Promise((r) => setTimeout(r, delay));
+        continue;
+      }
+      break;
+    }
+  }
+
+  throw lastError;
 }
 
 export async function parseBatchChunkWithGemini(
