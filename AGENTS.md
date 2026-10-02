@@ -56,10 +56,19 @@ Resume-tracker/
 ├── .dockerignore                # Build context exclusion list
 ├── .env.example                 # Template for required and optional environment variables
 │
+├── extension/                   # Chrome Extension (Manifest V3 Job Clipper)
+│   ├── manifest.json            # Extension metadata, permissions & shortcuts (Alt+Shift+J)
+│   ├── popup.html               # Popup view markup (form, states, dark theme)
+│   ├── popup.css                # Scoped Tailwind-inspired styling
+│   ├── popup.js                 # Popup controller (DOM injection, duplicate check, API sync)
+│   ├── extractor.js             # Content extractor injected into active browser tabs
+│   └── README.md                # Installation and developer guide for the extension
+│
 ├── prisma/
 │   └── schema.prisma            # Prisma SQLite datasource & Application model definition
 │
 ├── server/                      # Backend implementation
+│   ├── app.ts                   # Express application, CORS/PNA middleware & router mounts (isolated from entrypoint)
 │   ├── config/
 │   │   └── env.ts               # Environment variable parsing and defaults (ENV object)
 │   ├── data/
@@ -169,6 +178,8 @@ docker compose down
 - When integrating with AI (Gemini) or external scrapers, **never fail hard** if the API key is missing, invalid, or rate-limited.
 - Always implement and maintain deterministic heuristic fallbacks (see `heuristics.service.ts` and `heuristics.service.test.ts`).
 - Server endpoints should return structured fallback data (e.g. `source: 'fallback'`) rather than 500 errors whenever possible.
+- **Private Network Access (PNA) for Browser Extensions**: Preflight (`OPTIONS 204`) and all API responses must include `Access-Control-Allow-Private-Network: true` to prevent Chrome >= 142 Local Network Access blocks when clients query local/LAN IPs (e.g. `192.168.x.x`).
+- **Endpoint Fallback**: Browser extensions and external clients querying modular routes (e.g. `/api/jobs/parse-job`) should include fallback to legacy paths (`/api/parse-job`) if a 404 response is encountered.
 
 ### 2. TypeScript & Imports
 - Use path alias `@/*` mapping to `./*` as defined in `tsconfig.json` and `vite.config.ts`.
@@ -190,6 +201,9 @@ docker compose down
 - The `/api/health` endpoint is used by Docker `HEALTHCHECK`. Keep this endpoint fast and free of external dependencies.
 - **Persistent SQLite storage & permissions**: Storage is mounted via Docker volume: `./data:/app/data`. The runner container runs as user `bun` (UID 1000). Host `./data` must be writable by UID 1000 (`sudo chown -R 1000:1000 data && sudo chmod -R 775 data`) to prevent SQLite `Error code 14: Unable to open the database file`.
 - **Multi-stage Bun builds**: Avoid running `bun install --production` in the runner stage — Bun enforces frozen lockfiles during dependency filtering even with `--no-frozen-lockfile`. Instead, install all dependencies in the builder stage and directly copy `node_modules` (`COPY --from=builder /app/node_modules ./node_modules`).
+- **Bun Runtime Entrypoint Isolation**: In Bun v1.4+, when executing bundled entrypoints (e.g. `bun dist/server.cjs`), Bun's internal `bun:main` inspects exported properties (`isServerConfig(entryNamespace?.default)`). If `app` or server-like objects are exported from the entrypoint, Bun attempts to auto-serve via `Bun.serve()`, crashing Express with `TypeError: Bun.serve() needs either: a routes object or a fetch handler`. Therefore:
+  - **`server.ts` MUST NEVER export any variables or functions.** It is strictly a self-executing entrypoint.
+  - The Express app instance, middleware, and route registrations must reside in `server/app.ts`, which test files import directly (`import { app } from '../server/app'`).
 
 ### 6. Database & Persistence (Prisma + SQLite)
 - The persistent SQLite database resides in `./data/tracker.db` (local dev) or `/app/data/tracker.db` (Docker container).
