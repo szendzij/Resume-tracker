@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 
 # Install all dependencies (including devDependencies needed for build)
-RUN bun install --frozen-lockfile
+RUN bun install
 
 # Copy source code and config files
 COPY . .
@@ -33,7 +33,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/dist ./dist
 
 # Install production dependencies using Bun
-RUN bun install --production --frozen-lockfile
+RUN bun install --production
 
 # Create persistent data directory and grant ownership to non-root user 'bun'
 RUN mkdir -p /app/data && chown -R bun:bun /app/data
