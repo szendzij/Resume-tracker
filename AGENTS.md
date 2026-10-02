@@ -199,5 +199,5 @@ docker compose down
 - Frontend sync (`useApplications.ts`) transparently hydrates from `GET /api/applications` and bootstraps `localStorage` data to the backend database upon initial connection.
 
 ### 7. Git & Version Control Rules
-- **Commits are fully pre-approved**: Committing (`git commit`), pulling (`git pull`), branching, and local staging (`git add`) by both the main agent and subagents are pre-approved and do NOT require user confirmation or approval. Execute commits automatically.
+- **Commits and inspection commands are fully pre-approved**: Committing (`git commit`), pulling (`git pull`), branching, local staging (`git add`), and revision checks like `git rev-parse HEAD` by both the main agent and subagents are pre-approved and do NOT require user confirmation or approval. Execute them automatically.
 - **NEVER push changes (`git push`) without explicit, direct user request**. Pushing to remotes (`origin`, etc.) is strictly forbidden unless the user explicitly tells you to push.

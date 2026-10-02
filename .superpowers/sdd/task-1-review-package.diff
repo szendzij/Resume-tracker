@@ -1,0 +1,207 @@
+eb3ae47 feat(server): add CORS with Private Network Access and 'Do zaaplikowania' status
+ server.ts                 | 20 +++++++++++++--
+ src/types.ts              |  1 +
+ src/utils/statusConfig.ts | 10 ++++++++
+ tests/server-cors.test.ts | 63 +++++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 92 insertions(+), 2 deletions(-)
+diff --git a/server.ts b/server.ts
+index cbcb3eb..0068c22 100644
+--- a/server.ts
++++ b/server.ts
+@@ -5,24 +5,36 @@ import { ENV } from './server/config/env';
+ import { jobsRouter } from './server/routes/jobs.routes';
+ import { authRouter, renderAuthCallbackHtml } from './server/routes/auth.routes';
+ import { emailsRouter } from './server/routes/emails.routes';
+ import { geminiRouter } from './server/routes/gemini.routes';
+ import { applicationsRouter } from './server/routes/applications.routes';
+ import { dbService } from './server/services/db.service';
+ 
+ // Re-export for backward compatibility
+ export { deducePortalAndHints } from './server/services/heuristics.service';
+ 
+-const app = express();
++export const app = express();
+ 
+ app.use(express.json({ limit: '10mb' }));
+ 
++app.use((req, res, next) => {
++  res.header('Access-Control-Allow-Origin', '*');
++  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
++  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-gemini-key');
++  res.header('Access-Control-Allow-Private-Network', 'true');
++  if (req.method === 'OPTIONS') {
++    res.sendStatus(204);
++    return;
++  }
++  next();
++});
++
+ // Health check endpoint
+ app.get('/api/health', (req: Request, res: Response) => {
+   res.json({ status: 'ok', timestamp: new Date().toISOString() });
+ });
+ 
+ // OAuth Callback handler for both Outlook and Gmail popups
+ app.get(['/auth/callback', '/auth/callback/'], (req: Request, res: Response) => {
+   res.send(renderAuthCallbackHtml());
+ });
+ 
+@@ -49,11 +61,15 @@ async function startServer() {
+     app.get('*', (req: Request, res: Response) => {
+       res.sendFile(path.join(distPath, 'index.html'));
+     });
+   }
+ 
+   app.listen(ENV.PORT, '0.0.0.0', () => {
+     console.log(`Server running on http://0.0.0.0:${ENV.PORT}`);
+   });
+ }
+ 
+-startServer();
++if (process.env.NODE_ENV !== 'test') {
++  startServer();
++}
++
++export { startServer };
+diff --git a/src/types.ts b/src/types.ts
+index 323144a..7e59f34 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -1,11 +1,12 @@
+ export type JobStatus =
++  | 'Do zaaplikowania'
+   | 'Wysłana'
+   | 'Weryfikacja CV'
+   | 'Rozmowa HR'
+   | 'Rozmowa techniczna'
+   | 'Zadanie rekrutacyjne'
+   | 'Oferta'
+   | 'Odrzucona'
+   | 'Zrezygnowano';
+ 
+ export interface JobApplication {
+diff --git a/src/utils/statusConfig.ts b/src/utils/statusConfig.ts
+index 6cc77b1..1fbeef5 100644
+--- a/src/utils/statusConfig.ts
++++ b/src/utils/statusConfig.ts
+@@ -4,20 +4,29 @@ export interface StatusMeta {
+   label: JobStatus;
+   bg: string;
+   text: string;
+   border: string;
+   dot: string;
+   badgeClass: string;
+   description: string;
+ }
+ 
+ export const STATUS_CONFIG: Record<JobStatus, StatusMeta> = {
++  'Do zaaplikowania': {
++    label: 'Do zaaplikowania',
++    bg: 'bg-slate-100 dark:bg-slate-800/80',
++    text: 'text-slate-700 dark:text-slate-300',
++    border: 'border-slate-300 dark:border-slate-700',
++    dot: 'bg-indigo-500 dark:bg-indigo-400',
++    badgeClass: 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700',
++    description: 'Zapisana oferta, oczekuje na przygotowanie i wysłanie CV',
++  },
+   'Wysłana': {
+     label: 'Wysłana',
+     bg: 'bg-blue-50 dark:bg-blue-950/50',
+     text: 'text-blue-700 dark:text-blue-300',
+     border: 'border-blue-200 dark:border-blue-800/70',
+     dot: 'bg-blue-500 dark:bg-blue-400',
+     badgeClass: 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/70 hover:bg-blue-100 dark:hover:bg-blue-900/60',
+     description: 'CV wysłane, oczekiwanie na pierwszą odpowiedź',
+   },
+   'Weryfikacja CV': {
+@@ -79,20 +88,21 @@ export const STATUS_CONFIG: Record<JobStatus, StatusMeta> = {
+     bg: 'bg-slate-100 dark:bg-slate-800',
+     text: 'text-slate-700 dark:text-slate-300',
+     border: 'border-slate-200 dark:border-slate-700',
+     dot: 'bg-slate-400 dark:bg-slate-500',
+     badgeClass: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700',
+     description: 'Rezygnacja z udziału w dalszych etapach',
+   },
+ };
+ 
+ export const ALL_STATUSES: JobStatus[] = [
++  'Do zaaplikowania',
+   'Wysłana',
+   'Weryfikacja CV',
+   'Rozmowa HR',
+   'Rozmowa techniczna',
+   'Zadanie rekrutacyjne',
+   'Oferta',
+   'Odrzucona',
+   'Zrezygnowano',
+ ];
+ 
+diff --git a/tests/server-cors.test.ts b/tests/server-cors.test.ts
+new file mode 100644
+index 0000000..3dddc16
+--- /dev/null
++++ b/tests/server-cors.test.ts
+@@ -0,0 +1,63 @@
++import { describe, it, expect, beforeAll, afterAll } from 'vitest';
++import http from 'http';
++import { app } from '../server';
++import { ALL_STATUSES, STATUS_CONFIG } from '../src/utils/statusConfig';
++
++describe('Server CORS & Private Network Access', () => {
++  let server: http.Server;
++  let baseUrl: string;
++
++  beforeAll(async () => {
++    await new Promise<void>((resolve) => {
++      server = app.listen(0, () => {
++        const port = (server.address() as any).port;
++        baseUrl = `http://127.0.0.1:${port}`;
++        resolve();
++      });
++    });
++  });
++
++  afterAll(async () => {
++    if (server) {
++      await new Promise<void>((resolve) => server.close(() => resolve()));
++    }
++  });
++
++  it('OPTIONS /api/health returns status 204 with PNA and CORS headers', async () => {
++    const res = await fetch(`${baseUrl}/api/health`, {
++      method: 'OPTIONS',
++      headers: {
++        'Origin': 'chrome-extension://test-extension-id',
++        'Access-Control-Request-Method': 'GET',
++        'Access-Control-Request-Private-Network': 'true',
++      },
++    });
++
++    expect(res.status).toBe(204);
++    expect(res.headers.get('access-control-allow-origin')).toBe('*');
++    expect(res.headers.get('access-control-allow-private-network')).toBe('true');
++  });
++
++  it('GET /api/health returns headers access-control-allow-origin: * and access-control-allow-private-network: true', async () => {
++    const res = await fetch(`${baseUrl}/api/health`);
++
++    expect(res.status).toBe(200);
++    expect(res.headers.get('access-control-allow-origin')).toBe('*');
++    expect(res.headers.get('access-control-allow-private-network')).toBe('true');
++  });
++});
++
++describe('Domain Status Updates', () => {
++  it('contains "Do zaaplikowania" in ALL_STATUSES and in STATUS_CONFIG with required styling and description', () => {
++    expect(ALL_STATUSES).toContain('Do zaaplikowania');
++    const config = (STATUS_CONFIG as Record<string, any>)['Do zaaplikowania'];
++    expect(config).toBeDefined();
++    expect(config.label).toBe('Do zaaplikowania');
++    expect(config.bg).toBeTruthy();
++    expect(config.text).toBeTruthy();
++    expect(config.border).toBeTruthy();
++    expect(config.dot).toBeTruthy();
++    expect(config.badgeClass).toBeTruthy();
++    expect(config.description).toBe('Zapisana oferta, oczekuje na przygotowanie i wysłanie CV');
++  });
++});
