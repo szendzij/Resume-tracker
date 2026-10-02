@@ -6,6 +6,7 @@ import { jobsRouter } from './server/routes/jobs.routes';
 import { authRouter, renderAuthCallbackHtml } from './server/routes/auth.routes';
 import { emailsRouter } from './server/routes/emails.routes';
 import { geminiRouter } from './server/routes/gemini.routes';
+import { applicationsRouter } from './server/routes/applications.routes';
 
 // Re-export for backward compatibility
 export { deducePortalAndHints } from './server/services/heuristics.service';
@@ -29,6 +30,7 @@ app.use('/api', authRouter);
 app.use('/api', jobsRouter);
 app.use('/api', emailsRouter);
 app.use('/api/gemini', geminiRouter);
+app.use('/api/applications', applicationsRouter);
 
 // Production static assets & Vite development middleware
 async function startServer() {
