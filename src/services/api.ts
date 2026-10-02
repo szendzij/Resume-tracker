@@ -182,4 +182,75 @@ export const api = {
     const data = await res.json();
     return data;
   },
+
+  // Applications Database Endpoints
+  async getApplications(): Promise<JobApplication[]> {
+    const res = await fetch('/api/applications', {
+      method: 'GET',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      throw new Error(`Błąd pobierania aplikacji: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async createApplication(app: JobApplication): Promise<JobApplication> {
+    const res = await fetch('/api/applications', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(app),
+    });
+    if (!res.ok) {
+      throw new Error(`Błąd tworzenia aplikacji: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async batchCreateApplications(applications: JobApplication[]): Promise<{ count: number; success: boolean }> {
+    const res = await fetch('/api/applications/batch', {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ applications }),
+    });
+    if (!res.ok) {
+      throw new Error(`Błąd masowego zapisu aplikacji: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async updateApplication(id: string, updates: Partial<JobApplication>): Promise<JobApplication> {
+    const res = await fetch(`/api/applications/${id}`, {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) {
+      throw new Error(`Błąd aktualizacji aplikacji: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async deleteApplication(id: string): Promise<{ success: boolean; id: string }> {
+    const res = await fetch(`/api/applications/${id}`, {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+    });
+    if (!res.ok) {
+      throw new Error(`Błąd usuwania aplikacji: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async batchDeleteApplications(ids: string[]): Promise<{ success: boolean; count: number }> {
+    const res = await fetch('/api/applications', {
+      method: 'DELETE',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) {
+      throw new Error(`Błąd masowego usuwania aplikacji: ${res.statusText}`);
+    }
+    return res.json();
+  },
 };
