@@ -29,10 +29,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 # Copy built artifacts and package manifest
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/bun.lock ./bun.lock
+COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/dist ./dist
 
 # Install production dependencies using Bun
 RUN bun install --production --frozen-lockfile
+
+# Create persistent data directory and grant ownership to non-root user 'bun'
+RUN mkdir -p /app/data && chown -R bun:bun /app/data
 
 # Run as non-root user (bun image comes with user 'bun')
 USER bun

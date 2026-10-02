@@ -123,4 +123,14 @@ export const dbService = {
     });
     return result.count;
   },
+
+  async initDatabase(): Promise<void> {
+    try {
+      // Warm up connection
+      await prisma.$connect();
+      console.log('Database connected successfully (SQLite)');
+    } catch (err) {
+      console.error('Failed to initialize database connection:', err);
+    }
+  },
 };

@@ -7,6 +7,7 @@ import { authRouter, renderAuthCallbackHtml } from './server/routes/auth.routes'
 import { emailsRouter } from './server/routes/emails.routes';
 import { geminiRouter } from './server/routes/gemini.routes';
 import { applicationsRouter } from './server/routes/applications.routes';
+import { dbService } from './server/services/db.service';
 
 // Re-export for backward compatibility
 export { deducePortalAndHints } from './server/services/heuristics.service';
@@ -34,6 +35,8 @@ app.use('/api/applications', applicationsRouter);
 
 // Production static assets & Vite development middleware
 async function startServer() {
+  await dbService.initDatabase();
+
   if (!ENV.IS_PRODUCTION) {
     const vite = await createViteServer({
       server: { middlewareMode: true },

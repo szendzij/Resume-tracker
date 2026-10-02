@@ -16,6 +16,9 @@ services:
       - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET:-}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - DATABASE_URL=${DATABASE_URL:-file:/app/data/tracker.db}
+    volumes:
+      - ./data:/app/data
     env_file:
       - path: .env
         required: false
