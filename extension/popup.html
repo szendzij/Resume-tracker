@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Resume Tracker - Job Clipper</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-wrapper">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-brand">
+        <div class="brand-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="20" height="14" x="2" y="7" rx="2" ry="2"/>
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>
+          </svg>
+        </div>
+        <span class="brand-title">Resume Tracker</span>
+        <span id="server-status-dot" class="status-dot dot-unknown" title="Status połączenia z serwerem"></span>
+      </div>
+      <button type="button" id="btn-settings" class="icon-btn" aria-label="Ustawienia" title="Ustawienia">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      </button>
+    </header>
+
+    <!-- 1. Loading View -->
+    <section id="view-loading" class="view-panel">
+      <div class="loading-content">
+        <div class="loading-spinner"></div>
+        <div id="loading-portal-pill" class="portal-pill">Wykrywanie portalu...</div>
+        <h3 class="loading-title">Analizowanie oferty</h3>
+        <p class="loading-subtitle">Pobieram dane oferty i analizuję przez AI...</p>
+      </div>
+    </section>
+
+    <!-- 2. Form View -->
+    <section id="view-form" class="view-panel hidden">
+      <!-- Duplicate Warning Banner -->
+      <div id="duplicate-banner" class="duplicate-alert hidden">
+        <div class="alert-icon">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/>
+            <line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+        </div>
+        <div class="alert-body">
+          <div id="duplicate-text" class="alert-message">Ta oferta może już istnieć w Twojej bazie danych.</div>
+          <div class="alert-actions">
+            <button type="button" id="btn-update" class="btn-warning-action">Zaktualizuj istniejący</button>
+            <button type="button" id="btn-save-new" class="btn-ghost-action">Zapisz jako nowy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Main Form -->
+      <form id="job-form" class="job-form">
+        <div class="form-group">
+          <label for="field-role" class="form-label">Stanowisko / Rola <span class="required">*</span></label>
+          <input type="text" id="field-role" class="form-input" placeholder="np. Senior Frontend Developer" required>
+        </div>
+
+        <div class="form-group">
+          <label for="field-company" class="form-label">Firma <span class="required">*</span></label>
+          <input type="text" id="field-company" class="form-input" placeholder="np. Acme Corp" required>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="field-location" class="form-label">Lokalizacja</label>
+            <input type="text" id="field-location" class="form-input" placeholder="np. Warszawa, Polska">
+          </div>
+          <div class="form-group flex-1">
+            <label for="field-salary" class="form-label">Wynagrodzenie</label>
+            <input type="text" id="field-salary" class="form-input" placeholder="np. 18 000 - 24 000 PLN">
+          </div>
+        </div>
+
+        <!-- Work Type Pills -->
+        <div class="form-group">
+          <label class="form-label">Tryb pracy</label>
+          <div id="work-type-group" class="pill-group">
+            <button type="button" class="pill-btn" data-value="Zdalnie">Zdalnie</button>
+            <button type="button" class="pill-btn" data-value="Hybrydowo">Hybrydowo</button>
+            <button type="button" class="pill-btn" data-value="Biuro">Biuro</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="field-portal" class="form-label">Portal</label>
+            <input type="text" id="field-portal" class="form-input" placeholder="np. LinkedIn">
+          </div>
+          <div class="form-group flex-1">
+            <label for="field-status" class="form-label">Status początkowy</label>
+            <select id="field-status" class="form-select">
+              <option value="Do zaaplikowania" selected>Do zaaplikowania</option>
+              <option value="Wysłana">Wysłana</option>
+              <option value="Weryfikacja CV">Weryfikacja CV</option>
+              <option value="Rozmowa HR">Rozmowa HR</option>
+              <option value="Rozmowa techniczna">Rozmowa techniczna</option>
+              <option value="Zadanie rekrutacyjne">Zadanie rekrutacyjne</option>
+              <option value="Oferta">Oferta</option>
+              <option value="Odrzucona">Odrzucona</option>
+              <option value="Zrezygnowano">Zrezygnowano</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Skills Container -->
+        <div class="form-group">
+          <label class="form-label">Wymagane technologie i umiejętności</label>
+          <div id="skills-container" class="skills-wrap"></div>
+          <div class="skills-input-row">
+            <input type="text" id="input-new-skill" class="form-input input-skill" placeholder="Dodaj umiejętność...">
+            <button type="button" id="btn-add-skill" class="btn-add-skill" title="Dodaj tag">+</button>
+          </div>
+        </div>
+
+        <!-- Notes -->
+        <div class="form-group">
+          <label for="field-notes" class="form-label">Notatki / Podsumowanie AI</label>
+          <textarea id="field-notes" class="form-textarea" rows="3" placeholder="Główne wymagania, widełki, benefity..."></textarea>
+        </div>
+
+        <!-- Include Full Text Checkbox -->
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label" for="chk-include-full-text">
+            <input type="checkbox" id="chk-include-full-text" class="form-checkbox">
+            <span>Dołącz pełną treść ogłoszenia do notatek</span>
+          </label>
+        </div>
+
+        <!-- Form Actions -->
+        <div class="form-actions">
+          <button type="button" id="btn-cancel" class="btn btn-secondary">Anuluj</button>
+          <button type="submit" id="btn-save" class="btn btn-primary">💾 Zapisz w Resume Tracker</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- 3. Success View -->
+    <section id="view-success" class="view-panel hidden">
+      <div class="status-panel-content">
+        <div class="success-icon-badge">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        </div>
+        <h3 class="panel-heading">Oferta pomyślnie zapisana!</h3>
+        <p class="panel-subtext">Szczegóły zostały zsynchronizowane z Twoją instancją Resume Tracker.</p>
+        <div class="panel-actions">
+          <button type="button" id="btn-open-app" class="btn btn-primary w-full">Otwórz w Resume Tracker</button>
+          <button type="button" id="btn-close-success" class="btn btn-secondary w-full">Zamknij</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. Settings View -->
+    <section id="view-settings" class="view-panel hidden">
+      <div class="settings-header">
+        <button type="button" id="btn-back-from-settings" class="icon-btn-back" title="Wróć" aria-label="Wróć">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="m15 18-6-6 6-6"/>
+          </svg>
+        </button>
+        <h3 class="settings-title">Ustawienia połączenia</h3>
+      </div>
+
+      <div class="settings-body">
+        <div class="form-group">
+          <label for="input-server-url" class="form-label">Adres serwera Resume Tracker</label>
+          <input type="url" id="input-server-url" class="form-input" placeholder="http://192.168.1.150:3050" value="http://localhost:3050">
+          <span class="field-hint">Adres serwera Proxmox LAN lub localhost (port domyślny: 3050).</span>
+        </div>
+
+        <div class="connection-test-row">
+          <button type="button" id="btn-test-connection" class="btn btn-secondary btn-sm">Testuj połączenie</button>
+          <span id="test-connection-status" class="test-status-indicator"></span>
+        </div>
+
+        <div class="form-group">
+          <label for="input-custom-api-key" class="form-label">Klucz Gemini API (opcjonalny)</label>
+          <input type="password" id="input-custom-api-key" class="form-input" placeholder="Wprowadź klucz AI (pozostaw puste dla serwerowego)">
+          <span class="field-hint">Jeśli pozostawisz puste, serwer użyje własnego klucza z pliku .env.</span>
+        </div>
+
+        <div class="settings-actions">
+          <button type="button" id="btn-save-settings" class="btn btn-primary w-full">Zapisz ustawienia</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Error View -->
+    <section id="view-error" class="view-panel hidden">
+      <div class="status-panel-content">
+        <div class="error-icon-badge">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"/>
+            <line x1="12" y1="8" x2="12" y2="12"/>
+            <line x1="12" y1="16" x2="12.01" y2="16"/>
+          </svg>
+        </div>
+        <h3 class="panel-heading">Wystąpił problem</h3>
+        <div id="error-message" class="error-details-box">Nie udało się połączyć z serwerem Resume Tracker.</div>
+        <div class="panel-actions">
+          <button type="button" id="btn-retry" class="btn btn-primary w-full">Spróbuj ponownie</button>
+          <button type="button" id="btn-goto-settings" class="btn btn-secondary w-full">Przejdź do ustawień</button>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
