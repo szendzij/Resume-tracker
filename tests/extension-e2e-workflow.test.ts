@@ -4,7 +4,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { app } from '../server';
+import { app } from '../server/app';
 import { dbService } from '../server/services/db.service';
 import { extractJobOfferData } from '../extension/extractor.js';
 import {

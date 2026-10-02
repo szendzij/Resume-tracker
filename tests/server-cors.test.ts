@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import http from 'http';
-import { app } from '../server';
+import { app } from '../server/app';
 import { ALL_STATUSES, STATUS_CONFIG } from '../src/utils/statusConfig';
 
 describe('Server CORS & Private Network Access', () => {
