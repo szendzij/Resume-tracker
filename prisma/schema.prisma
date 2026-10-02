@@ -1,0 +1,26 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Application {
+  id             String   @id @default(uuid())
+  role           String
+  company        String
+  portal         String?
+  url            String?
+  appliedDate    String
+  status         String   @default("Wysłana")
+  location       String?
+  salary         String?
+  skills         String?  // JSON string array: string[]
+  notes          String?
+  lastUpdated    String?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}

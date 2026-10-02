@@ -8,4 +8,5 @@ export const ENV = {
   GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
   APP_URL: process.env.APP_URL || 'http://localhost:3000',
   IS_PRODUCTION: process.env.NODE_ENV === 'production',
+  DATABASE_URL: process.env.DATABASE_URL || 'file:./data/tracker.db',
 };
