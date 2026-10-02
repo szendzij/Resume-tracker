@@ -167,11 +167,20 @@ export async function parseJobDetails(serverUrl, extractedData, customApiKey) {
     customApiKey: customApiKey || undefined,
   };
 
-  const res = await fetch(`${base}/api/jobs/parse-job`, {
+  let res = await fetch(`${base}/api/jobs/parse-job`, {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
   });
+
+  // Backward compatibility: try /api/parse-job if instance has not been updated yet
+  if (res.status === 404) {
+    res = await fetch(`${base}/api/parse-job`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(payload),
+    });
+  }
 
   if (!res.ok) {
     throw new Error(`Błąd analizy oferty: status ${res.status}`);
