@@ -7,7 +7,7 @@ WORKDIR /app
 COPY package.json bun.lock ./
 
 # Install all dependencies (including devDependencies needed for build)
-RUN bun install
+RUN bun install --no-frozen-lockfile
 
 # Copy source code and config files
 COPY . .
@@ -26,14 +26,18 @@ ENV PORT=3000
 # Install curl for Docker healthcheck
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
-# Copy built artifacts and package manifest
+# Copy built artifacts, package manifest and generated lockfile from builder
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/bun.lock ./bun.lock
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/dist ./dist
 
 # Install production dependencies using Bun
-RUN bun install --production
+RUN bun install --production --no-frozen-lockfile
+
+# Copy generated Prisma engine & client from builder stage
+COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 
 # Create persistent data directory and grant ownership to non-root user 'bun'
 RUN mkdir -p /app/data && chown -R bun:bun /app/data
