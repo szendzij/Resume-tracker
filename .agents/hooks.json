@@ -1,0 +1,16 @@
+{
+  "entrypoint-guard": {
+    "PreToolUse": [
+      {
+        "matcher": "run_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node scripts/hook-pre-command.cjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
