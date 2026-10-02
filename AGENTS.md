@@ -193,3 +193,7 @@ docker compose down
 - When adding new columns or changing schema in development, use `npx prisma db push`.
 - Nested structured arrays (`skills`, `timeline`, `contacts`) are serialized to JSON text columns in SQLite. Always use `safeJsonParse` fallbacks in `server/services/db.service.ts` to prevent runtime crashes on malformed data.
 - Frontend sync (`useApplications.ts`) transparently hydrates from `GET /api/applications` and bootstraps `localStorage` data to the backend database upon initial connection.
+
+### 7. Git & Version Control Rules
+- **NEVER push changes (`git push`) without explicit, direct user request**.
+- Committing (`git commit`), pulling (`git pull`), branching, and local staging (`git add`) are allowed, but pushing to remotes (`origin`, etc.) is strictly forbidden unless the user explicitly tells you to push.
