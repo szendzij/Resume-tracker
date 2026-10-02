@@ -7,7 +7,7 @@ import { extractMetadataFromTitleAndUrl } from '../../src/utils/linkParser';
 export const jobsRouter = Router();
 
 // Endpoint: Parse single job link via Gemini LLM + Heuristics
-jobsRouter.post('/parse-job', async (req: Request, res: Response) => {
+jobsRouter.post(['/parse-job', '/jobs/parse-job'], async (req: Request, res: Response) => {
   const { url, rawText, linkTitle, customApiKey } = req.body;
   const customKey = (req.headers['x-gemini-key'] as string) || customApiKey;
 
@@ -60,7 +60,7 @@ jobsRouter.post('/parse-job', async (req: Request, res: Response) => {
 });
 
 // Endpoint: Batch parse multiple links with Gemini AI
-jobsRouter.post('/batch-parse', async (req: Request, res: Response) => {
+jobsRouter.post(['/batch-parse', '/jobs/batch-parse'], async (req: Request, res: Response) => {
   const { items, urls, customApiKey } = req.body;
   const customKey = (req.headers['x-gemini-key'] as string) || customApiKey;
 
