@@ -16,31 +16,30 @@ COPY . .
 ENV NODE_ENV=production
 RUN bun run build
 
-# Stage 2: Runtime runner
-FROM node:22-alpine AS runner
+# Stage 2: Runtime runner (using bun or node with isolated production packages)
+FROM oven/bun:1-slim AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
 
 # Install curl for Docker healthcheck
-RUN apk add --no-cache curl
-
-# Create non-root system user for security
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
 
 # Copy built artifacts and package manifest
-COPY --from=builder --chown=appuser:appgroup /app/package.json ./package.json
-COPY --from=builder --chown=appuser:appgroup /app/dist ./dist
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/bun.lock ./bun.lock
+COPY --from=builder /app/dist ./dist
 
-# Install production dependencies only (express, dotenv, @google/genai, etc.)
-RUN npm install --omit=dev --ignore-scripts
+# Install production dependencies using Bun
+RUN bun install --production --frozen-lockfile
 
-USER appuser
+# Run as non-root user (bun image comes with user 'bun')
+USER bun
 
 EXPOSE 3000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
-CMD ["node", "dist/server.cjs"]
+CMD ["bun", "run", "dist/server.cjs"]
