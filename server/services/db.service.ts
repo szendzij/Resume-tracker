@@ -126,9 +126,30 @@ export const dbService = {
 
   async initDatabase(): Promise<void> {
     try {
-      // Warm up connection
+      // Connect to SQLite
       await prisma.$connect();
-      console.log('Database connected successfully (SQLite)');
+
+      // Automatically ensure Application table exists without requiring external CLI migrations
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Application" (
+          "id" TEXT PRIMARY KEY NOT NULL,
+          "role" TEXT NOT NULL,
+          "company" TEXT NOT NULL,
+          "portal" TEXT,
+          "url" TEXT,
+          "appliedDate" TEXT NOT NULL,
+          "status" TEXT NOT NULL DEFAULT 'Wysłana',
+          "location" TEXT,
+          "salary" TEXT,
+          "skills" TEXT,
+          "notes" TEXT,
+          "lastUpdated" TEXT,
+          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+
+      console.log('Database connected and schema verified (SQLite)');
     } catch (err) {
       console.error('Failed to initialize database connection:', err);
     }
