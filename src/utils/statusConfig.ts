@@ -11,6 +11,15 @@ export interface StatusMeta {
 }
 
 export const STATUS_CONFIG: Record<JobStatus, StatusMeta> = {
+  'Do zaaplikowania': {
+    label: 'Do zaaplikowania',
+    bg: 'bg-slate-100 dark:bg-slate-800/80',
+    text: 'text-slate-700 dark:text-slate-300',
+    border: 'border-slate-300 dark:border-slate-700',
+    dot: 'bg-indigo-500 dark:bg-indigo-400',
+    badgeClass: 'bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:bg-slate-200 dark:hover:bg-slate-700',
+    description: 'Zapisana oferta, oczekuje na przygotowanie i wysłanie CV',
+  },
   'Wysłana': {
     label: 'Wysłana',
     bg: 'bg-blue-50 dark:bg-blue-950/50',
@@ -86,6 +95,7 @@ export const STATUS_CONFIG: Record<JobStatus, StatusMeta> = {
 };
 
 export const ALL_STATUSES: JobStatus[] = [
+  'Do zaaplikowania',
   'Wysłana',
   'Weryfikacja CV',
   'Rozmowa HR',

@@ -1,4 +1,5 @@
 export type JobStatus =
+  | 'Do zaaplikowania'
   | 'Wysłana'
   | 'Weryfikacja CV'
   | 'Rozmowa HR'

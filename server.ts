@@ -12,9 +12,21 @@ import { dbService } from './server/services/db.service';
 // Re-export for backward compatibility
 export { deducePortalAndHints } from './server/services/heuristics.service';
 
-const app = express();
+export const app = express();
 
 app.use(express.json({ limit: '10mb' }));
+
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-gemini-key');
+  res.header('Access-Control-Allow-Private-Network', 'true');
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(204);
+    return;
+  }
+  next();
+});
 
 // Health check endpoint
 app.get('/api/health', (req: Request, res: Response) => {
@@ -56,4 +68,8 @@ async function startServer() {
   });
 }
 
-startServer();
+if (process.env.NODE_ENV !== 'test') {
+  startServer();
+}
+
+export { startServer };
