@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const serverFile = path.join(__dirname, '..', 'server.ts');
+const serverFile = path.join(__dirname, '..', '..', 'server.ts');
 
 if (!fs.existsSync(serverFile)) {
   console.error(`[check-entrypoint] Error: server.ts not found at ${serverFile}`);

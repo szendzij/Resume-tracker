@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 
-const serverBundle = path.join(__dirname, '..', 'dist', 'server.cjs');
+const serverBundle = path.join(__dirname, '..', '..', 'dist', 'server.cjs');
 
 if (!fs.existsSync(serverBundle)) {
   console.error(`[smoke-test] Error: dist/server.cjs not found at ${serverBundle}. Run build first.`);
