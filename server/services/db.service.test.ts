@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { dbService, prisma } from './db.service';
-import { JobApplication } from '../../src/types';
+import { JobApplication } from '../../shared/types';
 
 describe('dbService', () => {
   it('saves and retrieves applications with parsed JSON fields', async () => {

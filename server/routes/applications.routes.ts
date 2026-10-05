@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { Router, Request, Response } from 'express';
 import { dbService } from '../services/db.service';
-import { JobApplication } from '../../src/types';
+import { JobApplication } from '../../shared/types';
 import { validateBody } from '../middleware/validate';
 import {
   createApplicationSchema,

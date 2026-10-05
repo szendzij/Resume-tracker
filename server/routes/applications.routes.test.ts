@@ -3,7 +3,7 @@ import express from 'express';
 import http from 'http';
 import { applicationsRouter } from './applications.routes';
 import { dbService } from '../services/db.service';
-import { JobApplication } from '../../src/types';
+import { JobApplication } from '../../shared/types';
 
 vi.mock('../services/db.service', () => ({
   dbService: {

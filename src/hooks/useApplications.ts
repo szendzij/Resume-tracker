@@ -3,6 +3,7 @@ import { JobApplication, JobStatus } from '../types';
 import { INITIAL_JOB_APPLICATIONS } from '../data/initialJobs';
 import { api } from '../services/api';
 import { detectDuplicate } from '../utils/duplicateDetector';
+import { appendTimelineTransition, createInitialTimelineEntry } from '../utils/timelineUtils';
 
 const STORAGE_KEY = 'job_tracker_applications_v1';
 
@@ -101,25 +102,16 @@ export function useApplications(onNotification?: (msg: string) => void) {
       setApplications((prev) =>
         prev.map((app) => {
           if (app.id !== id) return app;
-          const existingTimeline =
-            app.timeline && app.timeline.length > 0
-              ? [...app.timeline]
-              : [
-                  {
-                    id: `tl-init-${app.id}`,
-                    status: app.status || 'Wysłana',
-                    date: app.appliedDate || today,
-                  },
-                ];
+          const newTimeline = appendTimelineTransition(
+            app.timeline,
+            newStatus,
+            today,
+            undefined,
+            app.id,
+            app.appliedDate,
+            app.status
+          );
 
-          const newTimeline = [
-            ...existingTimeline,
-            {
-              id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-              status: newStatus,
-              date: today,
-            },
-          ];
 
           api.updateApplication(id, { status: newStatus, timeline: newTimeline, lastUpdated: now }).catch((err) => {
             console.error('Failed to sync status update to server', err);
@@ -145,24 +137,15 @@ export function useApplications(onNotification?: (msg: string) => void) {
 
             let updatedTimeline = data.timeline ?? app.timeline;
             if (!data.timeline && data.status && data.status !== app.status) {
-              const currentTl =
-                app.timeline && app.timeline.length > 0
-                  ? [...app.timeline]
-                  : [
-                      {
-                        id: `tl-init-${app.id}`,
-                        status: app.status,
-                        date: app.appliedDate || today,
-                      },
-                    ];
-              updatedTimeline = [
-                ...currentTl,
-                {
-                  id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-                  status: data.status,
-                  date: today,
-                },
-              ];
+              updatedTimeline = appendTimelineTransition(
+                app.timeline,
+                data.status,
+                today,
+                undefined,
+                app.id,
+                app.appliedDate,
+                app.status
+              );
             }
 
             const updatedApp = {
@@ -184,8 +167,9 @@ export function useApplications(onNotification?: (msg: string) => void) {
         notify('Zaktualizowano aplikację.');
       } else {
         const newAppDate = data.appliedDate || today;
+        const newAppId = `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
         const newApp: JobApplication = {
-          id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          id: newAppId,
           role: data.role || 'Stanowisko',
           company: data.company || 'Firma',
           portal: data.portal || 'LinkedIn',
@@ -198,13 +182,7 @@ export function useApplications(onNotification?: (msg: string) => void) {
           timeline:
             data.timeline && data.timeline.length > 0
               ? data.timeline
-              : [
-                  {
-                    id: `tl-${Date.now()}`,
-                    status: data.status || 'Wysłana',
-                    date: newAppDate,
-                  },
-                ],
+              : [createInitialTimelineEntry(newAppId, data.status || 'Wysłana', newAppDate)],
           notes: data.notes,
           lastUpdated: now,
         };
@@ -266,26 +244,16 @@ export function useApplications(onNotification?: (msg: string) => void) {
             ? `${app.notes}\n${update.noteAddition}`
             : update.noteAddition;
 
-          const existingTimeline =
-            app.timeline && app.timeline.length > 0
-              ? [...app.timeline]
-              : [
-                  {
-                    id: `tl-init-${app.id}`,
-                    status: app.status || 'Wysłana',
-                    date: app.appliedDate || today,
-                  },
-                ];
+          const updatedTimeline = appendTimelineTransition(
+            app.timeline,
+            update.newStatus,
+            update.meetingDate || today,
+            update.noteAddition || undefined,
+            app.id,
+            app.appliedDate,
+            app.status
+          );
 
-          const updatedTimeline = [
-            ...existingTimeline,
-            {
-              id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-              status: update.newStatus,
-              date: update.meetingDate || today,
-              notes: update.noteAddition || undefined,
-            },
-          ];
 
           const updated = {
             ...app,
@@ -328,13 +296,8 @@ export function useApplications(onNotification?: (msg: string) => void) {
         location: newApp.location || 'Polska / Remote',
         salary: newApp.salary || '',
         skills: newApp.skills || [],
-        timeline: [
-          {
-            id: `tl-${Date.now()}`,
-            status: createdStatus,
-            date: createdDate,
-          },
-        ],
+        timeline: [createInitialTimelineEntry(`email-${Date.now()}`, createdStatus, createdDate)],
+
         notes: newApp.notes || 'Wykryto automatycznie z korespondencji e-mail.',
         lastUpdated: now,
       };
@@ -365,25 +328,16 @@ export function useApplications(onNotification?: (msg: string) => void) {
       setApplications((prev) =>
         prev.map((app) => {
           if (!selectedIds.includes(app.id)) return app;
-          const existingTimeline =
-            app.timeline && app.timeline.length > 0
-              ? [...app.timeline]
-              : [
-                  {
-                    id: `tl-init-${app.id}`,
-                    status: app.status || 'Wysłana',
-                    date: app.appliedDate || today,
-                  },
-                ];
+          const updatedTimeline = appendTimelineTransition(
+            app.timeline,
+            newStatus,
+            today,
+            undefined,
+            app.id,
+            app.appliedDate,
+            app.status
+          );
 
-          const updatedTimeline = [
-            ...existingTimeline,
-            {
-              id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-              status: newStatus,
-              date: today,
-            },
-          ];
 
           api
             .updateApplication(app.id, {

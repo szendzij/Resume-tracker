@@ -1,32 +1,13 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { JobApplication, JobStatus, ApplicationTimelineEntry } from '../types';
-import { ALL_STATUSES, POPULAR_PORTALS, STATUS_CONFIG } from '../utils/statusConfig';
-import {
-  detectDuplicate,
-  DuplicateCandidate,
-  DuplicateDetectionResult,
-} from '../utils/duplicateDetector';
-import {
-  X,
-  Sparkles,
-  Loader2,
-  Link2,
-  Building2,
-  Briefcase,
-  Calendar,
-  MapPin,
-  DollarSign,
-  Tag,
-  FileText,
-  AlertTriangle,
-  ExternalLink,
-  ShieldAlert,
-  Clock,
-  Plus,
-  Trash2,
-} from 'lucide-react';
+import React from 'react';
+import { X, FileText } from 'lucide-react';
+import { JobApplication } from '../types';
+import { useJobModalForm } from './job-modal/useJobModalForm';
+import { JobBasicInfoSection } from './job-modal/JobBasicInfoSection';
+import { JobDuplicateWarning } from './job-modal/JobDuplicateWarning';
+import { JobTimelineSection } from './job-modal/JobTimelineSection';
+import { JobSkillsSection } from './job-modal/JobSkillsSection';
 
-interface JobModalProps {
+export interface JobModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (app: Partial<JobApplication>) => void;
@@ -41,279 +22,15 @@ export const JobModal: React.FC<JobModalProps> = ({
   initialData,
   existingApplications = [],
 }) => {
-  const [role, setRole] = useState('');
-  const [company, setCompany] = useState('');
-  const [portal, setPortal] = useState('LinkedIn');
-  const [customPortal, setCustomPortal] = useState('');
-  const [url, setUrl] = useState('');
-  const [appliedDate, setAppliedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [status, setStatus] = useState<JobStatus>('Wysłana');
-  const [timeline, setTimeline] = useState<ApplicationTimelineEntry[]>([]);
-  const [location, setLocation] = useState('');
-  const [salary, setSalary] = useState('');
-  const [skillInput, setSkillInput] = useState('');
-  const [skills, setSkills] = useState<string[]>([]);
-  const [notes, setNotes] = useState('');
-
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiMessage, setAiMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-
-  // Duplicate warning confirmation state
-  const [allowDuplicateSave, setAllowDuplicateSave] = useState(false);
-  const [showDuplicatePrompt, setShowDuplicatePrompt] = useState(false);
-
-  useEffect(() => {
-    if (initialData) {
-      setRole(initialData.role || '');
-      setCompany(initialData.company || '');
-      if (POPULAR_PORTALS.includes(initialData.portal)) {
-        setPortal(initialData.portal);
-        setCustomPortal('');
-      } else {
-        setPortal('Inny portal');
-        setCustomPortal(initialData.portal || '');
-      }
-      setUrl(initialData.url || '');
-      const initDate = initialData.appliedDate || new Date().toISOString().split('T')[0];
-      setAppliedDate(initDate);
-      const initStatus = initialData.status || 'Wysłana';
-      setStatus(initStatus);
-      if (initialData.timeline && initialData.timeline.length > 0) {
-        setTimeline(initialData.timeline);
-      } else {
-        setTimeline([
-          {
-            id: `tl-init-${initialData.id || Date.now()}`,
-            status: initStatus,
-            date: initDate,
-          },
-        ]);
-      }
-      setLocation(initialData.location || '');
-      setSalary(initialData.salary || '');
-      setSkills(initialData.skills || []);
-      setNotes(initialData.notes || '');
-    } else {
-      const today = new Date().toISOString().split('T')[0];
-      setRole('');
-      setCompany('');
-      setPortal('LinkedIn');
-      setCustomPortal('');
-      setUrl('');
-      setAppliedDate(today);
-      setStatus('Wysłana');
-      setTimeline([
-        {
-          id: `tl-${Date.now()}`,
-          status: 'Wysłana',
-          date: today,
-        },
-      ]);
-      setLocation('');
-      setSalary('');
-      setSkills([]);
-      setNotes('');
-    }
-    setAiMessage(null);
-    setAllowDuplicateSave(false);
-    setShowDuplicatePrompt(false);
-  }, [initialData, isOpen]);
-
-  // Real-time multi-parameter duplicate check
-  const duplicateCheck: DuplicateDetectionResult = useMemo(() => {
-    if (!isOpen) {
-      return { isDuplicate: false, confidence: 'none', matchedFields: [] };
-    }
-
-    const currentRole = role.trim();
-    const currentCompany = company.trim();
-    const currentUrl = url.trim();
-
-    // Skip if user hasn't typed company, role, or url yet
-    if (!currentRole && !currentCompany && !currentUrl) {
-      return { isDuplicate: false, confidence: 'none', matchedFields: [] };
-    }
-
-    const candidate: DuplicateCandidate = {
-      id: initialData?.id,
-      role: currentRole,
-      company: currentCompany,
-      url: currentUrl,
-      portal: portal === 'Inny portal' ? customPortal.trim() || 'Inny portal' : portal,
-      appliedDate,
-      location: location.trim(),
-    };
-
-    return detectDuplicate(candidate, existingApplications, {
-      excludeId: initialData?.id,
-    });
-  }, [
+  const form = useJobModalForm({
     isOpen,
-    role,
-    company,
-    url,
-    portal,
-    customPortal,
-    appliedDate,
-    location,
-    initialData?.id,
+    onClose,
+    onSave,
+    initialData,
     existingApplications,
-  ]);
+  });
 
   if (!isOpen) return null;
-
-  const handleAddSkill = (e?: React.KeyboardEvent | React.MouseEvent) => {
-    if (e && 'key' in e && e.key !== 'Enter') return;
-    if (e) e.preventDefault();
-    const trimmed = skillInput.trim();
-    if (trimmed && !skills.includes(trimmed)) {
-      setSkills([...skills, trimmed]);
-      setSkillInput('');
-    }
-  };
-
-  const handleRemoveSkill = (skillToRemove: string) => {
-    setSkills(skills.filter((s) => s !== skillToRemove));
-  };
-
-  const handleAiExtract = async () => {
-    if (!url.trim()) {
-      setAiMessage({ type: 'error', text: 'Wklej najpierw poprawny link do oferty pracy.' });
-      return;
-    }
-
-    setIsAiLoading(true);
-    setAiMessage(null);
-
-    try {
-      const res = await fetch('/api/parse-job', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-
-      if (!res.ok) {
-        throw new Error('Błąd odpowiedzi serwera');
-      }
-
-      const data = await res.json();
-
-      if (data.role) setRole(data.role);
-      if (data.company) setCompany(data.company);
-      if (data.portal) {
-        if (POPULAR_PORTALS.includes(data.portal)) {
-          setPortal(data.portal);
-          setCustomPortal('');
-        } else {
-          setPortal('Inny portal');
-          setCustomPortal(data.portal);
-        }
-      }
-      if (data.location) setLocation(data.location);
-      if (data.salary) setSalary(data.salary);
-      if (data.skills && Array.isArray(data.skills)) {
-        setSkills(Array.from(new Set([...skills, ...data.skills])));
-      }
-      if (data.notes) {
-        setNotes((prev) => (prev ? `${prev}\n${data.notes}` : data.notes));
-      }
-
-      setAiMessage({
-        type: 'success',
-        text: `✨ Pomyślnie wyciągnięto dane: ${data.company} - ${data.role}`,
-      });
-    } catch (e) {
-      console.error(e);
-      setAiMessage({
-        type: 'error',
-        text: 'Nie udało się połączyć z AI. Sprawdź format linku lub uzupełnij pola ręcznie.',
-      });
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
-
-  const handleAddTimelineEntry = () => {
-    const today = new Date().toISOString().split('T')[0];
-    const newEntry: ApplicationTimelineEntry = {
-      id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-      status: 'Rozmowa HR',
-      date: today,
-      notes: '',
-    };
-    setTimeline((prev) => [...prev, newEntry]);
-  };
-
-  const handleUpdateTimelineEntry = (
-    id: string,
-    field: 'status' | 'date' | 'notes',
-    value: string
-  ) => {
-    setTimeline((prev) =>
-      prev.map((entry) => {
-        if (entry.id !== id) return entry;
-        if (field === 'status') {
-          return { ...entry, status: value as JobStatus };
-        }
-        return { ...entry, [field]: value };
-      })
-    );
-  };
-
-  const handleRemoveTimelineEntry = (id: string) => {
-    setTimeline((prev) => prev.filter((entry) => entry.id !== id));
-  };
-
-  const handleStatusSelectChange = (newStatus: JobStatus) => {
-    setStatus(newStatus);
-    const today = new Date().toISOString().split('T')[0];
-    setTimeline((prev) => {
-      if (prev.length > 0 && prev[prev.length - 1].status === newStatus) {
-        return prev;
-      }
-      return [
-        ...prev,
-        {
-          id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-          status: newStatus,
-          date: today,
-        },
-      ];
-    });
-  };
-
-  const executeSave = () => {
-    const finalPortal = portal === 'Inny portal' ? customPortal.trim() || 'Inny portal' : portal;
-
-    onSave({
-      role: role.trim(),
-      company: company.trim(),
-      portal: finalPortal,
-      url: url.trim(),
-      appliedDate,
-      status,
-      location: location.trim(),
-      salary: salary.trim(),
-      skills,
-      timeline,
-      notes: notes.trim(),
-      lastUpdated: new Date().toISOString(),
-    });
-    onClose();
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!role.trim() || !company.trim()) return;
-
-    // If duplicate detected and user has not acknowledged
-    if (duplicateCheck.isDuplicate && !allowDuplicateSave) {
-      setShowDuplicatePrompt(true);
-      return;
-    }
-
-    executeSave();
-  };
 
   return (
     <div
@@ -343,484 +60,61 @@ export const JobModal: React.FC<JobModalProps> = ({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* AI Auto-extract section */}
-          <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-100 dark:border-blue-900/60 rounded-xl p-3.5 space-y-2">
-            <label className="text-xs font-semibold text-blue-900 dark:text-blue-200 flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                <Link2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
-                Link do oferty pracy (URL)
-              </span>
-              <span className="text-[11px] text-blue-600 dark:text-blue-400 font-normal">
-                np. LinkedIn, NoFluffJobs, JustJoinIT, Pracuj.pl
-              </span>
-            </label>
-
-            <div className="flex gap-2">
-              <input
-                id="job-url-input"
-                type="url"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://nofluffjobs.com/job/... lub https://www.linkedin.com/jobs/view/..."
-                className="flex-1 px-3 py-2 bg-white dark:bg-slate-800 border border-blue-200 dark:border-blue-800/80 rounded-lg text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-hidden focus:ring-2 focus:ring-blue-500/30"
-              />
-              <button
-                id="ai-extract-btn"
-                type="button"
-                onClick={handleAiExtract}
-                disabled={isAiLoading || !url}
-                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 dark:disabled:bg-blue-900/40 text-white rounded-lg text-xs font-medium flex items-center gap-1.5 shadow-xs transition-all shrink-0 cursor-pointer disabled:cursor-not-allowed"
-                title="Wyciągnij dane o stanowisku i firmie przez model LLM"
-              >
-                {isAiLoading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>Analizuję...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" />
-                    <span>Wyciągnij z AI</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {aiMessage && (
-              <div
-                className={`text-xs px-2.5 py-1.5 rounded-md flex items-center gap-1.5 ${
-                  aiMessage.type === 'success'
-                    ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-200 border border-emerald-200 dark:border-emerald-800'
-                    : 'bg-rose-50 dark:bg-rose-950/60 text-rose-800 dark:text-rose-200 border border-rose-200 dark:border-rose-800'
-                }`}
-              >
-                {aiMessage.text}
-              </div>
-            )}
-          </div>
+        <form onSubmit={form.handleSubmit} className="p-6 space-y-4">
+          {/* Basic Info (URL, AI extract, Role, Company, Portal, Status, Date, Location, Salary) */}
+          <JobBasicInfoSection
+            url={form.url}
+            setUrl={form.setUrl}
+            isAiLoading={form.isAiLoading}
+            aiMessage={form.aiMessage}
+            onAiExtract={form.handleAiExtract}
+            role={form.role}
+            setRole={form.setRole}
+            company={form.company}
+            setCompany={form.setCompany}
+            portal={form.portal}
+            setPortal={form.setPortal}
+            customPortal={form.customPortal}
+            setCustomPortal={form.setCustomPortal}
+            status={form.status}
+            onStatusChange={form.handleStatusSelectChange}
+            appliedDate={form.appliedDate}
+            onAppliedDateChange={form.handleAppliedDateChange}
+            location={form.location}
+            setLocation={form.setLocation}
+            salary={form.salary}
+            setSalary={form.setSalary}
+          />
 
           {/* Real-time Duplicate Warning Banner */}
-          {duplicateCheck.isDuplicate && (
-            <div
-              id="job-duplicate-warning-banner"
-              className={`p-4 rounded-xl border transition-all animate-in fade-in duration-200 ${
-                showDuplicatePrompt
-                  ? 'bg-amber-100/90 dark:bg-amber-950/70 border-amber-400 dark:border-amber-600 shadow-md ring-2 ring-amber-400/40'
-                  : 'bg-amber-50/80 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800'
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5">
-                  <AlertTriangle className="w-5 h-5" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-semibold text-xs text-amber-950 dark:text-amber-100">
-                      Wykryto prawdopodobny duplikat z ofertą w bazie!
-                    </span>
-
-                    {/* Matched parameters tags */}
-                    <div className="flex flex-wrap items-center gap-1">
-                      {duplicateCheck.matchedFields.includes('url') && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 text-[10px] font-bold">
-                          🔗 Link URL
-                        </span>
-                      )}
-                      {duplicateCheck.matchedFields.includes('company') && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 text-[10px] font-bold">
-                          🏢 Firma
-                        </span>
-                      )}
-                      {duplicateCheck.matchedFields.includes('role') && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 text-[10px] font-bold">
-                          💼 Stanowisko
-                        </span>
-                      )}
-                      {duplicateCheck.matchedFields.includes('appliedDate') && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 text-[10px] font-bold">
-                          📅 Data
-                        </span>
-                      )}
-                      {duplicateCheck.matchedFields.includes('portal') && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 text-[10px] font-bold">
-                          🌐 Portal
-                        </span>
-                      )}
-                      {duplicateCheck.matchedFields.includes('location') && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-200/80 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 text-[10px] font-bold">
-                          📍 Lokalizacja
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <p className="mt-1 text-xs text-amber-900 dark:text-amber-200">
-                    {duplicateCheck.reason}
-                  </p>
-
-                  {/* Matched application summary snippet */}
-                  {duplicateCheck.matchedApplication && (
-                    <div className="mt-2 text-[11px] p-2 rounded-lg bg-amber-100/60 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800/60 flex flex-wrap items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-semibold text-slate-800 dark:text-slate-200">
-                          {duplicateCheck.matchedApplication.company} – {duplicateCheck.matchedApplication.role}
-                        </span>
-                        <span className="text-slate-500 dark:text-slate-400">•</span>
-                        <span className="px-1.5 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-300 font-medium">
-                          {(duplicateCheck.matchedApplication as JobApplication).status || 'Wysłana'}
-                        </span>
-                        {duplicateCheck.matchedApplication.appliedDate && (
-                          <span className="text-slate-600 dark:text-slate-300">
-                            złożono: {duplicateCheck.matchedApplication.appliedDate}
-                          </span>
-                        )}
-                      </div>
-
-                      {duplicateCheck.matchedApplication.url && (
-                        <a
-                          href={duplicateCheck.matchedApplication.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          Zobacz istniejący link <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Allow save checkbox */}
-                  <div className="mt-3 flex items-center justify-between flex-wrap gap-2 pt-2 border-t border-amber-200 dark:border-amber-800/80">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs text-amber-950 dark:text-amber-200">
-                      <input
-                        type="checkbox"
-                        checked={allowDuplicateSave}
-                        onChange={(e) => {
-                          setAllowDuplicateSave(e.target.checked);
-                          if (e.target.checked) setShowDuplicatePrompt(false);
-                        }}
-                        className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
-                      />
-                      <span>Zezwól na dodanie/zapisanie mimo wykrytego duplikatu</span>
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAllowDuplicateSave(true);
-                        executeSave();
-                      }}
-                      className="px-2.5 py-1 text-xs font-semibold rounded-md bg-amber-600 hover:bg-amber-700 text-white transition-colors cursor-pointer"
-                    >
-                      Dodaj mimo to
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Role and Company */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Stanowisko / Rola <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Briefcase className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  id="job-role-input"
-                  type="text"
-                  required
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  placeholder="np. Software Engineer, Product Manager, QA"
-                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Firma / Pracodawca <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Building2 className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  id="job-company-input"
-                  type="text"
-                  required
-                  value={company}
-                  onChange={(e) => setCompany(e.target.value)}
-                  placeholder="np. Spyrosoft, GFT Poland"
-                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Portal, Status and Date */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Portal / Źródło oferty
-              </label>
-              <select
-                id="job-portal-select"
-                value={portal}
-                onChange={(e) => setPortal(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-              >
-                {POPULAR_PORTALS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-              {portal === 'Inny portal' && (
-                <input
-                  type="text"
-                  value={customPortal}
-                  onChange={(e) => setCustomPortal(e.target.value)}
-                  placeholder="Wpisz nazwę portalu..."
-                  className="w-full mt-2 px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100"
-                />
-              )}
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Status aplikacji
-              </label>
-              <select
-                id="job-status-select"
-                value={status}
-                onChange={(e) => handleStatusSelectChange(e.target.value as JobStatus)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
-              >
-                {ALL_STATUSES.map((st) => (
-                  <option key={st} value={st}>
-                    {st}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Data wysłania CV <span className="text-rose-500">*</span>
-              </label>
-              <div className="relative">
-                <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  id="job-applied-date-input"
-                  type="date"
-                  required
-                  value={appliedDate}
-                  onChange={(e) => {
-                    const newDate = e.target.value;
-                    setAppliedDate(newDate);
-                    setTimeline((prev) => {
-                      if (
-                        prev.length > 0 &&
-                        (prev[0].status === 'Wysłana' || prev[0].status === 'Do zaaplikowania')
-                      ) {
-                        return prev.map((entry, idx) =>
-                          idx === 0 ? { ...entry, date: newDate } : entry
-                        );
-                      }
-                      return prev;
-                    });
-                  }}
-                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono"
-                />
-              </div>
-            </div>
-          </div>
+          <JobDuplicateWarning
+            duplicateCheck={form.duplicateCheck}
+            showDuplicatePrompt={form.showDuplicatePrompt}
+            allowDuplicateSave={form.allowDuplicateSave}
+            setAllowDuplicateSave={form.setAllowDuplicateSave}
+            setShowDuplicatePrompt={form.setShowDuplicatePrompt}
+            onConfirmSave={() => {
+              form.setAllowDuplicateSave(true);
+              form.executeSave();
+            }}
+          />
 
           {/* Status Timeline & Stage Dates */}
-          <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700/80 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                  Historia etapów i daty statusów
-                </h4>
-              </div>
-              <button
-                type="button"
-                onClick={handleAddTimelineEntry}
-                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/80 transition-colors cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Dodaj etap</span>
-              </button>
-            </div>
-
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              Oznaczaj dokładne daty, kiedy odbyła się rozmowa z HR, rozmowa techniczna lub nastąpiła zmiana etapu.
-            </p>
-
-            {timeline.length === 0 ? (
-              <div className="text-center py-3 text-xs text-slate-400 dark:text-slate-500">
-                Brak zarejestrowanych etapów. Kliknij &quot;Dodaj etap&quot;, aby dodać datę statusu.
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {timeline.map((entry, idx) => (
-                  <div
-                    key={entry.id || idx}
-                    className="flex flex-col sm:flex-row sm:items-center gap-2 p-2.5 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-750 text-xs shadow-2xs"
-                  >
-                    {/* Status selector for this entry */}
-                    <div className="w-full sm:w-44 shrink-0">
-                      <select
-                        value={entry.status}
-                        onChange={(e) =>
-                          handleUpdateTimelineEntry(entry.id, 'status', e.target.value)
-                        }
-                        className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
-                      >
-                        {ALL_STATUSES.map((st) => (
-                          <option
-                            key={st}
-                            value={st}
-                            className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-normal"
-                          >
-                            {st}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Date Picker */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-                      <input
-                        type="date"
-                        value={entry.date}
-                        onChange={(e) =>
-                          handleUpdateTimelineEntry(entry.id, 'date', e.target.value)
-                        }
-                        className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-mono text-slate-800 dark:text-slate-200 dark:[color-scheme:dark] focus:outline-hidden focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    {/* Optional Notes */}
-                    <div className="flex-1 min-w-0">
-                      <input
-                        type="text"
-                        value={entry.notes || ''}
-                        onChange={(e) =>
-                          handleUpdateTimelineEntry(entry.id, 'notes', e.target.value)
-                        }
-                        placeholder="Notatka do etapu (np. rozmowa z rekruterem)..."
-                        className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
-                      />
-                    </div>
-
-                    {/* Remove entry button */}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveTimelineEntry(entry.id)}
-                      disabled={timeline.length <= 1}
-                      title={timeline.length <= 1 ? 'Wymagany co najmniej jeden etap' : 'Usuń ten etap'}
-                      className="p-1.5 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 disabled:opacity-30 disabled:cursor-not-allowed rounded cursor-pointer shrink-0 self-end sm:self-center transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Location and Salary */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Lokalizacja / Tryb pracy
-              </label>
-              <div className="relative">
-                <MapPin className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  id="job-location-input"
-                  type="text"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                  placeholder="np. Wrocław, Remote, Warszawa (Hybrydowo)"
-                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-                Widełki wynagrodzenia (opcjonalnie)
-              </label>
-              <div className="relative">
-                <DollarSign className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  id="job-salary-input"
-                  type="text"
-                  value={salary}
-                  onChange={(e) => setSalary(e.target.value)}
-                  placeholder="np. 18 000 - 24 000 PLN B2B"
-                  className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
-            </div>
-          </div>
+          <JobTimelineSection
+            timeline={form.timeline}
+            onAddEntry={form.handleAddTimelineEntry}
+            onUpdateEntry={form.handleUpdateTimelineEntry}
+            onRemoveEntry={form.handleRemoveTimelineEntry}
+          />
 
           {/* Skills / Tech Stack Tags */}
-          <div>
-            <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-              Wymagane technologie / słowa kluczowe
-            </label>
-            <div className="flex gap-2 mb-2">
-              <div className="relative flex-1">
-                <Tag className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  id="job-skill-input"
-                  type="text"
-                  value={skillInput}
-                  onChange={(e) => setSkillInput(e.target.value)}
-                  onKeyDown={handleAddSkill}
-                  placeholder="Wpisz np. React, Python, SQL, Zarządzanie i naciśnij Enter"
-                  className="w-full pl-9 pr-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={handleAddSkill}
-                className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium cursor-pointer"
-              >
-                Dodaj tag
-              </button>
-            </div>
-
-            {skills.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {skills.map((skill) => (
-                  <span
-                    key={skill}
-                    className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 rounded-full text-xs font-medium"
-                  >
-                    {skill}
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveSkill(skill)}
-                      className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
+          <JobSkillsSection
+            skills={form.skills}
+            skillInput={form.skillInput}
+            setSkillInput={form.setSkillInput}
+            onAddSkill={form.handleAddSkill}
+            onRemoveSkill={form.handleRemoveSkill}
+          />
 
           {/* Notes */}
           <div>
@@ -832,8 +126,8 @@ export const JobModal: React.FC<JobModalProps> = ({
               <textarea
                 id="job-notes-input"
                 rows={2}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                value={form.notes}
+                onChange={(e) => form.setNotes(e.target.value)}
                 placeholder="np. Złożono przez formularz, czekam na kontakt od Karoliny z HR..."
                 className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
               />
@@ -863,3 +157,4 @@ export const JobModal: React.FC<JobModalProps> = ({
     </div>
   );
 };
+

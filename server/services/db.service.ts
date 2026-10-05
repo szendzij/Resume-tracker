@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { JobApplication, JobStatus, ApplicationTimelineEntry } from '../../src/types';
+import { JobApplication, JobStatus, ApplicationTimelineEntry } from '../../shared/types';
 
 export const prisma = new PrismaClient();
 

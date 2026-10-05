@@ -2,7 +2,7 @@ import { Router, Request, Response } from 'express';
 import { deducePortalAndHints, extractHeuristicJob } from '../services/heuristics.service';
 import { fetchPageExcerpt } from '../services/scraper.service';
 import { getGemini, parseSingleJobWithGemini, parseBatchChunkWithGemini } from '../services/gemini.service';
-import { extractMetadataFromTitleAndUrl } from '../../src/utils/linkParser';
+import { extractMetadataFromTitleAndUrl } from '../../shared/utils/metadataExtractor';
 
 export const jobsRouter = Router();
 
