@@ -18,8 +18,8 @@ export const JobSkillsSection: React.FC<JobSkillsSectionProps> = ({
 }) => {
   return (
     <div>
-      <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
-        Wymagane technologie / słowa kluczowe
+      <label htmlFor="job-skill-input" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+        Umiejętności / Technologie
       </label>
       <div className="flex gap-2 mb-2">
         <div className="relative flex-1">

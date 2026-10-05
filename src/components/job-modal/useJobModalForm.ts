@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useDeferredValue } from 'react';
 import { JobApplication, JobStatus, ApplicationTimelineEntry } from '../../types';
 import { POPULAR_PORTALS } from '../../utils/statusConfig';
 import {
@@ -93,15 +93,19 @@ export function useJobModalForm({
     setShowDuplicatePrompt(false);
   }, [initialData, isOpen]);
 
+  const deferredRole = useDeferredValue(role);
+  const deferredCompany = useDeferredValue(company);
+  const deferredUrl = useDeferredValue(url);
+
   // Real-time multi-parameter duplicate check
   const duplicateCheck: DuplicateDetectionResult = useMemo(() => {
     if (!isOpen) {
       return { isDuplicate: false, confidence: 'none', matchedFields: [] };
     }
 
-    const currentRole = role.trim();
-    const currentCompany = company.trim();
-    const currentUrl = url.trim();
+    const currentRole = deferredRole.trim();
+    const currentCompany = deferredCompany.trim();
+    const currentUrl = deferredUrl.trim();
 
     // Skip if user hasn't typed company, role, or url yet
     if (!currentRole && !currentCompany && !currentUrl) {
@@ -123,9 +127,9 @@ export function useJobModalForm({
     });
   }, [
     isOpen,
-    role,
-    company,
-    url,
+    deferredRole,
+    deferredCompany,
+    deferredUrl,
     portal,
     customPortal,
     appliedDate,

@@ -39,12 +39,15 @@ export const JobModal: React.FC<JobModalProps> = ({
     >
       <div
         id="job-modal-container"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="job-modal-title"
         className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden my-8 animate-in zoom-in-95 duration-150"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40">
           <div>
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
+            <h2 id="job-modal-title" className="text-lg font-semibold text-slate-900 dark:text-slate-100">
               {initialData ? 'Edytuj aplikację' : 'Dodaj nową aplikację'}
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
@@ -54,6 +57,7 @@ export const JobModal: React.FC<JobModalProps> = ({
           <button
             id="close-modal-btn"
             onClick={onClose}
+            aria-label="Zamknij"
             className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />

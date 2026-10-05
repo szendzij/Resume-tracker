@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { JobModal } from '../src/components/JobModal';
 import { JobApplication } from '../shared/types';
 
@@ -238,5 +238,146 @@ describe('JobModal Component', () => {
     expect(mockOnSave).toHaveBeenCalledTimes(1);
     expect(mockOnSave.mock.calls[0][0].company).toBe('Spotify');
     expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders all required ARIA accessibility attributes and form label associations', () => {
+    const existingApp: JobApplication = {
+      id: 'job-existing-1',
+      role: 'Backend Engineer',
+      company: 'Netflix',
+      portal: 'LinkedIn',
+      url: 'https://linkedin.com/jobs/view/999',
+      appliedDate: '2026-10-01',
+      status: 'Wysłana',
+    };
+
+    render(
+      <JobModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onSave={mockOnSave}
+        existingApplications={[existingApp]}
+      />
+    );
+
+    // Modal container dialog role and aria attributes
+    const container = document.getElementById('job-modal-container');
+    expect(container).not.toBeNull();
+    expect(container?.getAttribute('role')).toBe('dialog');
+    expect(container?.getAttribute('aria-modal')).toBe('true');
+    expect(container?.getAttribute('aria-labelledby')).toBe('job-modal-title');
+
+    // Title element
+    const title = document.getElementById('job-modal-title');
+    expect(title).not.toBeNull();
+    expect(title?.textContent).toContain('Dodaj nową aplikację');
+
+    // Close button aria-label
+    const closeBtn = document.getElementById('close-modal-btn');
+    expect(closeBtn?.getAttribute('aria-label')).toBe('Zamknij');
+
+    // Form inputs and label htmlFor associations
+    const expectedLabels = [
+      { htmlFor: 'job-url-input', inputId: 'job-url-input' },
+      { htmlFor: 'job-role-input', inputId: 'job-role-input' },
+      { htmlFor: 'job-company-input', inputId: 'job-company-input' },
+      { htmlFor: 'job-portal-select', inputId: 'job-portal-select' },
+      { htmlFor: 'job-status-select', inputId: 'job-status-select' },
+      { htmlFor: 'job-applied-date-input', inputId: 'job-applied-date-input' },
+      { htmlFor: 'job-location-input', inputId: 'job-location-input' },
+      { htmlFor: 'job-salary-input', inputId: 'job-salary-input' },
+      { htmlFor: 'job-skill-input', inputId: 'job-skill-input' },
+    ];
+
+    for (const { htmlFor, inputId } of expectedLabels) {
+      const label = document.querySelector(`label[for="${htmlFor}"]`);
+      expect(label).not.toBeNull();
+      const input = document.getElementById(inputId);
+      expect(input).not.toBeNull();
+    }
+
+    // Timeline section ARIA labels
+    const timelineSelect = screen.getByRole('combobox', { name: 'Status etapu' });
+    expect(timelineSelect).toBeDefined();
+
+    const timelineDateInput = screen.getByLabelText('Data etapu');
+    expect(timelineDateInput).toBeDefined();
+
+    const timelineNotesInput = screen.getByLabelText('Notatka etapu');
+    expect(timelineNotesInput).toBeDefined();
+
+    // Trigger duplicate warning to verify aria-live="polite"
+    const roleInput = document.getElementById('job-role-input')!;
+    const companyInput = document.getElementById('job-company-input')!;
+    fireEvent.change(roleInput, { target: { value: 'Backend Engineer' } });
+    fireEvent.change(companyInput, { target: { value: 'Netflix' } });
+
+    const warningBanner = document.getElementById('job-duplicate-warning-banner');
+    expect(warningBanner).not.toBeNull();
+    expect(warningBanner?.getAttribute('aria-live')).toBe('polite');
+  });
+
+  it('fetches job data via AI auto-fill button (Pobierz dane) and populates form fields', async () => {
+    const mockExtractedJob = {
+      role: 'Staff Frontend Engineer',
+      company: 'Acme Corp',
+      portal: 'NoFluffJobs',
+      location: 'Wrocław (Remote)',
+      salary: '28 000 - 35 000 PLN',
+      skills: ['React', 'TypeScript', 'GraphQL'],
+      notes: 'Wymagane doświadczenie w architekturze mikrofrontendów',
+    };
+
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockExtractedJob,
+    } as Response);
+
+    render(
+      <JobModal
+        isOpen={true}
+        onClose={mockOnClose}
+        onSave={mockOnSave}
+      />
+    );
+
+    const urlInput = document.getElementById('job-url-input') as HTMLInputElement;
+    fireEvent.change(urlInput, {
+      target: { value: 'https://nofluffjobs.com/job/staff-frontend-acme' },
+    });
+
+    const aiExtractBtn = document.getElementById('ai-extract-btn');
+    expect(aiExtractBtn).not.toBeNull();
+    fireEvent.click(aiExtractBtn!);
+
+    await waitFor(() => {
+      const roleInput = document.getElementById('job-role-input') as HTMLInputElement;
+      expect(roleInput.value).toBe('Staff Frontend Engineer');
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith('/api/parse-job', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://nofluffjobs.com/job/staff-frontend-acme' }),
+    });
+
+    const companyInput = document.getElementById('job-company-input') as HTMLInputElement;
+    const portalSelect = document.getElementById('job-portal-select') as HTMLSelectElement;
+    const locationInput = document.getElementById('job-location-input') as HTMLInputElement;
+    const salaryInput = document.getElementById('job-salary-input') as HTMLInputElement;
+    const notesInput = document.getElementById('job-notes-input') as HTMLTextAreaElement;
+
+    expect(companyInput.value).toBe('Acme Corp');
+    expect(portalSelect.value).toBe('NoFluffJobs');
+    expect(locationInput.value).toBe('Wrocław (Remote)');
+    expect(salaryInput.value).toBe('28 000 - 35 000 PLN');
+    expect(notesInput.value).toBe('Wymagane doświadczenie w architekturze mikrofrontendów');
+
+    // Verify skills were populated
+    expect(screen.getByText('React')).toBeDefined();
+    expect(screen.getByText('TypeScript')).toBeDefined();
+    expect(screen.getByText('GraphQL')).toBeDefined();
+
+    fetchSpy.mockRestore();
   });
 });

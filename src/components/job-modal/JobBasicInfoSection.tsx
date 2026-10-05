@@ -63,7 +63,7 @@ export const JobBasicInfoSection: React.FC<JobBasicInfoSectionProps> = ({
     <>
       {/* AI Auto-extract section */}
       <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 dark:from-blue-950/40 dark:to-indigo-950/40 border border-blue-100 dark:border-blue-900/60 rounded-xl p-3.5 space-y-2">
-        <label className="text-xs font-semibold text-blue-900 dark:text-blue-200 flex items-center justify-between">
+        <label htmlFor="job-url-input" className="text-xs font-semibold text-blue-900 dark:text-blue-200 flex items-center justify-between">
           <span className="flex items-center gap-1.5">
             <Link2 className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             Link do oferty pracy (URL)
@@ -120,7 +120,7 @@ export const JobBasicInfoSection: React.FC<JobBasicInfoSectionProps> = ({
       {/* Role and Company */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="job-role-input" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
             Stanowisko / Rola <span className="text-rose-500">*</span>
           </label>
           <div className="relative">
@@ -138,7 +138,7 @@ export const JobBasicInfoSection: React.FC<JobBasicInfoSectionProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="job-company-input" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
             Firma / Pracodawca <span className="text-rose-500">*</span>
           </label>
           <div className="relative">
@@ -159,7 +159,7 @@ export const JobBasicInfoSection: React.FC<JobBasicInfoSectionProps> = ({
       {/* Portal, Status and Date */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="job-portal-select" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
             Portal / Źródło oferty
           </label>
           <select
@@ -186,7 +186,7 @@ export const JobBasicInfoSection: React.FC<JobBasicInfoSectionProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="job-status-select" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
             Status aplikacji
           </label>
           <select
@@ -204,7 +204,7 @@ export const JobBasicInfoSection: React.FC<JobBasicInfoSectionProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="job-applied-date-input" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
             Data wysłania CV <span className="text-rose-500">*</span>
           </label>
           <div className="relative">
@@ -224,7 +224,7 @@ export const JobBasicInfoSection: React.FC<JobBasicInfoSectionProps> = ({
       {/* Location and Salary */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="job-location-input" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
             Lokalizacja / Tryb pracy
           </label>
           <div className="relative">
@@ -241,7 +241,7 @@ export const JobBasicInfoSection: React.FC<JobBasicInfoSectionProps> = ({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="job-salary-input" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
             Widełki wynagrodzenia (opcjonalnie)
           </label>
           <div className="relative">

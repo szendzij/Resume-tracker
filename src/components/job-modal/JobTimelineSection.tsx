@@ -53,6 +53,7 @@ export const JobTimelineSection: React.FC<JobTimelineSectionProps> = ({
               {/* Status selector for this entry */}
               <div className="w-full sm:w-44 shrink-0">
                 <select
+                  aria-label="Status etapu"
                   value={entry.status}
                   onChange={(e) => onUpdateEntry(entry.id, 'status', e.target.value)}
                   className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
@@ -74,6 +75,7 @@ export const JobTimelineSection: React.FC<JobTimelineSectionProps> = ({
                 <Calendar className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                 <input
                   type="date"
+                  aria-label="Data etapu"
                   value={entry.date}
                   onChange={(e) => onUpdateEntry(entry.id, 'date', e.target.value)}
                   className="px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-mono text-slate-800 dark:text-slate-200 dark:[color-scheme:dark] focus:outline-hidden focus:ring-1 focus:ring-blue-500"
@@ -84,6 +86,7 @@ export const JobTimelineSection: React.FC<JobTimelineSectionProps> = ({
               <div className="flex-1 min-w-0">
                 <input
                   type="text"
+                  aria-label="Notatka etapu"
                   value={entry.notes || ''}
                   onChange={(e) => onUpdateEntry(entry.id, 'notes', e.target.value)}
                   placeholder="Notatka do etapu (np. rozmowa z rekruterem)..."
@@ -96,6 +99,7 @@ export const JobTimelineSection: React.FC<JobTimelineSectionProps> = ({
                 type="button"
                 onClick={() => onRemoveEntry(entry.id)}
                 disabled={timeline.length <= 1}
+                aria-label="Usuń etap"
                 title={timeline.length <= 1 ? 'Wymagany co najmniej jeden etap' : 'Usuń ten etap'}
                 className="p-1.5 text-slate-400 hover:text-rose-600 dark:text-slate-500 dark:hover:text-rose-400 disabled:opacity-30 disabled:cursor-not-allowed rounded cursor-pointer shrink-0 self-end sm:self-center transition-colors"
               >

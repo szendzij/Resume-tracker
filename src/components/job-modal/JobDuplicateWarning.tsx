@@ -25,6 +25,7 @@ export const JobDuplicateWarning: React.FC<JobDuplicateWarningProps> = ({
   return (
     <div
       id="job-duplicate-warning-banner"
+      aria-live="polite"
       className={`p-4 rounded-xl border transition-all animate-in fade-in duration-200 ${
         showDuplicatePrompt
           ? 'bg-amber-100/90 dark:bg-amber-950/70 border-amber-400 dark:border-amber-600 shadow-md ring-2 ring-amber-400/40'
