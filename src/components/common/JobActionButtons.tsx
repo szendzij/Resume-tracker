@@ -33,6 +33,7 @@ export const JobActionButtons: React.FC<JobActionButtonsProps> = ({
           id={`reanalyze-btn-${app.id}`}
           onClick={() => onReAnalyze(app)}
           title="Odśwież dane oferty przez AI Gemini"
+          aria-label={`Odśwież dane oferty ${app.company} przez AI`}
           className={`${btnPadClass} text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer`}
         >
           <Sparkles className={iconSizeClass} />
@@ -46,6 +47,7 @@ export const JobActionButtons: React.FC<JobActionButtonsProps> = ({
           target="_blank"
           rel="noopener noreferrer"
           title="Otwórz link do oferty"
+          aria-label={`Otwórz link do oferty ${app.company}`}
           className={`${btnPadClass} text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors inline-flex items-center cursor-pointer`}
         >
           <ExternalLink className={iconSizeClass} />
@@ -58,6 +60,7 @@ export const JobActionButtons: React.FC<JobActionButtonsProps> = ({
         id={`edit-btn-${app.id}`}
         onClick={() => onEdit(app)}
         title="Edytuj ofertę"
+        aria-label={`Edytuj ofertę ${app.company}`}
         className={`${btnPadClass} text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer`}
       >
         <Edit2 className={iconSizeClass} />
@@ -69,6 +72,7 @@ export const JobActionButtons: React.FC<JobActionButtonsProps> = ({
         id={`delete-btn-${app.id}`}
         onClick={() => onDelete(app)}
         title="Usuń ofertę"
+        aria-label={`Usuń ofertę ${app.company}`}
         className={`${btnPadClass} text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer`}
       >
         <Trash2 className={iconSizeClass} />

@@ -46,6 +46,8 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               {syncStatus && (
                 <div
                   id="sync-status-indicator"
+                  role="status"
+                  aria-live="polite"
                   data-status={syncStatus}
                   className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
                     syncStatus === 'syncing'
@@ -68,25 +70,25 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
                 >
                   {syncStatus === 'syncing' && (
                     <>
-                      <RefreshCw className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 animate-spin" />
+                      <RefreshCw aria-hidden="true" className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 animate-spin" />
                       <span className="text-[10px] font-semibold">Synchronizowanie...</span>
                     </>
                   )}
                   {syncStatus === 'idle' && (
                     <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                      <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                       <span className="text-[10px] font-semibold">Zsynchronizowano z bazą</span>
                     </>
                   )}
                   {syncStatus === 'offline' && (
                     <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                      <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
                       <span className="text-[10px] font-semibold">Tryb lokalny</span>
                     </>
                   )}
                   {syncStatus === 'error' && (
                     <>
-                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                      <span aria-hidden="true" className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
                       <span className="text-[10px] font-semibold">Błąd synchronizacji</span>
                     </>
                   )}
