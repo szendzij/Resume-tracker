@@ -46,7 +46,7 @@ describe('JobTable Component', () => {
     onDelete: vi.fn(),
     onStatusChange: vi.fn(),
     onReAnalyze: vi.fn(),
-    sortBy: 'date-desc' as const,
+    sortBy: 'appliedDateDesc' as const,
     onSortChange: vi.fn(),
   };
 

@@ -205,8 +205,8 @@ export function extractHeuristicJob(
     }
 
     // Salary from rawText (strict extraction without greedily capturing offer description)
-    const salaryRegex = /(?:^|[^\d])(\d[\d\s,.]*\s*(?:[-–—]|do)\s*\d[\d\s,.]*\s*(?:zł|PLN|EUR|USD|GBP|k\b)(?:\s*(?:netto|brutto|net|gross|\(\+?\s*VAT\)|\bB2B\b|\bUoP\b|\bUoD\b|\bUoZ\b|\/\s*(?:h|godz(?:in[aę])?\.?|m(?:ies(?:iąc|ięcznie)?)?\.?|day|dzień|m-c\.?|rok|yr|mo|month|mth)))*)/i;
-    const singleSalaryRegex = /(?:^|[^\d])(\d[\d\s,.]*\s*(?:zł|PLN|EUR|USD|GBP)(?:\s*(?:netto|brutto|net|gross|\(\+?\s*VAT\)|\bB2B\b|\bUoP\b|\bUoD\b|\bUoZ\b|\/\s*(?:h|godz(?:in[aę])?\.?|m(?:ies(?:iąc|ięcznie)?)?\.?|day|dzień|m-c\.?|rok|yr|mo|month|mth)))*)/i;
+    const salaryRegex = /(?:^|[^\d])(\d[\d\s,.]*\s*(?:[-–—]|do)\s*\d[\d\s,.]*\s*(?:zł|PLN|EUR|USD|GBP|k\b)(?:\s*(?:netto|brutto|net|gross|(?:\+?\s*VAT)|\bB2B\b|\bUoP\b|\bUoD\b|\bUoZ\b|\([A-Za-z0-9\s+]+\)|\/\s*(?:h|godz(?:in[aę])?\.?|m(?:ies(?:iąc|ięcznie)?)?\.?|day|dzień|m-c\.?|rok|yr|mo|month|mth)))*)/i;
+    const singleSalaryRegex = /(?:^|[^\d])(\d[\d\s,.]*\s*(?:zł|PLN|EUR|USD|GBP)(?:\s*(?:netto|brutto|net|gross|(?:\+?\s*VAT)|\bB2B\b|\bUoP\b|\bUoD\b|\bUoZ\b|\([A-Za-z0-9\s+]+\)|\/\s*(?:h|godz(?:in[aę])?\.?|m(?:ies(?:iąc|ięcznie)?)?\.?|day|dzień|m-c\.?|rok|yr|mo|month|mth)))*)/i;
 
     const salMatch = rawText.match(salaryRegex) || rawText.match(singleSalaryRegex);
     if (salMatch && salMatch[1]) {

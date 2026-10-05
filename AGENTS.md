@@ -229,3 +229,11 @@ docker compose down
 - **Subagents (`.agents/agents/`)**: Proactively delegate to or consult specialized subagents (e.g. `typescript-reviewer`, `react-reviewer`, `code-reviewer`, `build-error-resolver`) for reviews, migrations, or troubleshooting.
 - **Hooks (`.agents/hooks/` & `.agents/hooks.json`)**: All AI agents MUST comply with project lifecycle hooks, including safety gates (e.g. GateGuard fact-forcing before commands and file edits) and session state tracking.
 
+### 9. Data Extraction Quality & UI Scope Isolation
+- Inspect and strictly adhere to `.agents/rules/data-extraction-quality.md`.
+- **Defense in Depth for Metadata Extraction**: Every external or generative extraction pipeline (Scraper -> Regex/LLM -> API Route -> UI/Extension Form) must sanitize, validate, and bound data at each layer. Never assume an upstream layer produced safe or clean output.
+- **Salary & Metadata Isolation**: Fields like `salary` must strictly be <= 70 characters and contain only numeric compensation figures, currencies (`PLN`, `zł`, `EUR`, etc.), and contract qualifiers (`B2B`, `UoP`, `+ VAT`). Never leak job offer descriptions, duties, benefits (`Multisport`, `Medicover`), or multi-line text into discrete metadata fields.
+- **Scraper Text Boundaries**: Always preserve HTML block tags (`<br>`, `</p>`, `</div>`, `</li>`, headings) as line breaks (`\n`) before stripping tags. NEVER collapse an entire document's whitespace into a single line (`\s+ -> ' '`).
+- **UI View Scope Boundaries**: Adding features or stage tracking to one view (e.g. Calendar/Timeline) must NEVER alter or pollute unrelated views (e.g. Table) with unsolicited badges or metadata. Table rows must remain clean, dense, and easily scanable.
+
+
