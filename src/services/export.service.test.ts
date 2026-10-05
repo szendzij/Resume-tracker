@@ -63,7 +63,7 @@ describe('exportApplicationsToCSV', () => {
     expect(bytes[2]).toBe(0xbf);
 
     // Check header
-    expect(text).toContain('Stanowisko;Firma;Portal;Data wyslania CV;Status;Lokalizacja;Widelki;Technologie;Link;Notatki');
+    expect(text).toContain('Stanowisko;Firma;Portal;Data wyslania CV;Status;Data etapu;Historia etapow;Lokalizacja;Widelki;Technologie;Link;Notatki');
 
     // Check escaped quotes
     expect(text).toContain('"Senior QA ""Lead"""');

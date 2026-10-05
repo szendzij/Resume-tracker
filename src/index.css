@@ -2,9 +2,14 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Smooth theme transition */
+/* Smooth theme transition & native input color-scheme */
 html {
   transition: background-color 0.2s ease, color 0.2s ease;
+  color-scheme: light;
+}
+
+html.dark, .dark {
+  color-scheme: dark;
 }
 
 /* Custom scrollbars for clean Kanban and board views */

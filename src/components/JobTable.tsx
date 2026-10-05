@@ -14,6 +14,7 @@ import {
   Trash2,
   MapPin,
   DollarSign,
+  Calendar,
   Sparkles,
   Building2,
   ArrowUp,
@@ -260,9 +261,10 @@ export const JobTable: React.FC<JobTableProps> = ({
                         return (
                           <div
                             title={`Data etapu ${app.status}: ${statusDate}`}
-                            className="text-[10px] text-blue-600 dark:text-blue-400 font-mono mt-0.5"
+                            className="inline-flex items-center gap-1 text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-1 px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700"
                           >
-                            etap: {formatPolishDate(statusDate)}
+                            <Calendar className="w-2.5 h-2.5 text-slate-400 dark:text-slate-500" />
+                            <span>etap: {formatPolishDate(statusDate)}</span>
                           </div>
                         );
                       }
