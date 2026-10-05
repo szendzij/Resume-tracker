@@ -73,63 +73,88 @@ Resume-tracker/
 ├── prisma/
 │   └── schema.prisma            # Prisma SQLite datasource & Application model definition
 │
+├── shared/                      # Shared domain layer (isolated from React / Express)
+│   ├── types/
+│   │   └── index.ts             # Domain contracts, enums & interfaces
+│   └── utils/
+│       ├── urlUtils.ts          # URL normalization & domain extraction
+│       ├── timeline.ts          # Timeline state creation & stage transition logic
+│       ├── portalDetector.ts    # Portal detection rules
+│       └── metadataExtractor.ts # Job title & metadata deduction
+│
 ├── server/                      # Backend implementation
 │   ├── app.ts                   # Express application, CORS/PNA middleware & router mounts (isolated from entrypoint)
 │   ├── config/
 │   │   └── env.ts               # Environment variable parsing and defaults (ENV object)
 │   ├── data/
 │   │   └── sample-emails.ts     # Sample emails for testing inbox sync offline
+│   ├── middleware/
+│   │   └── validate.ts          # Generic Zod validation middleware for Express routes
 │   ├── routes/
 │   │   ├── applications.routes.ts # Applications CRUD & batch endpoints (/api/applications)
 │   │   ├── auth.routes.ts       # OAuth initiation & popup callback handlers (Outlook, Gmail)
 │   │   ├── emails.routes.ts     # Email sync, analysis, and status detection endpoints
 │   │   ├── gemini.routes.ts     # Gemini direct endpoints & proxy
 │   │   └── jobs.routes.ts       # Job parsing, batch processing, scraping endpoints
+│   ├── schemas/
+│   │   └── application.schema.ts # Zod validation schemas for applications CRUD & batch
 │   └── services/
-│       ├── db.service.ts        # Prisma database operations (CRUD, batch, safe JSON mapping)
+│       ├── db.service.ts        # Prisma database operations (CRUD, atomic batch, retry, safe JSON mapping)
 │       ├── email-analyzer.service.ts # LLM + heuristic email classification
-│       ├── email-sync.service.ts     # Graph API / Gmail API fetching logic
+│       ├── email-sync.service.ts     # Strategy pattern for email providers (OutlookSyncStrategy, GmailSyncStrategy)
 │       ├── gemini.service.ts         # Gemini client wrapper & prompts
 │       ├── heuristics.service.ts     # Deterministic regex/text job metadata extractors
-│       └── scraper.service.ts        # Lightweight webpage title/metadata fetcher
+│       └── scraper.service.ts        # SSRF-protected webpage title/metadata fetcher with DNS verification
 │
 └── src/                         # Frontend implementation
     ├── main.tsx                 # React DOM mount point
     ├── App.tsx                  # Root component (routing, modals, layout, view switching)
     ├── index.css                # Tailwind v4 import (@import "tailwindcss";)
-    ├── types.ts                 # Core application types (JobApplication, Status, Filter, etc.)
+    ├── types.ts                 # Core application types (re-exports from shared/types)
     ├── components/
-    │   ├── AppHeader.tsx        # Top navigation, search, actions, theme toggle
+    │   ├── AppHeader.tsx        # Top navigation, sync status indicator, search, actions, theme toggle
     │   ├── JobKanban.tsx        # Kanban drag-and-drop board
     │   ├── JobTable.tsx         # Tabular data grid with sorting
     │   ├── JobGrid.tsx          # Card-based grid view
+    │   ├── JobCalendar.tsx      # Chronological recruitment calendar
     │   ├── JobStats.tsx         # Visual summary metrics
-    │   ├── JobModal.tsx         # Add/Edit application modal
+    │   ├── JobModal.tsx         # Add/Edit application modal orchestrator
     │   ├── BatchAddModal.tsx    # Bulk job link parser modal
     │   ├── InboxSyncModal.tsx   # Email sync and status review modal
     │   ├── CsvImportModal.tsx   # CSV import mapping and duplicate detector
     │   ├── SettingsModal.tsx    # API keys, OAuth settings, and defaults
+    │   ├── common/              # Atomic reusable UI components
+    │   │   ├── StatusBadge.tsx  # Consistent recruitment status badge
+    │   │   ├── PortalBadge.tsx  # Standardized recruitment portal badge
+    │   │   └── JobActionButtons.tsx # Unified actions (edit, delete, external link, AI re-analyze)
+    │   ├── job-modal/           # Decomposed JobModal sections & hooks
+    │   │   ├── JobBasicInfoSection.tsx # Role, company, portal, URL, date, salary
+    │   │   ├── JobSkillsSection.tsx    # Skill tags input and badges
+    │   │   ├── JobTimelineSection.tsx  # Timeline stages list & interactive controls
+    │   │   ├── JobDuplicateWarning.tsx # Accessible duplicate detection banner
+    │   │   └── useJobModalForm.ts      # Form state, AI auto-fill & deferred duplicate checks
     │   ├── batch/               # Sub-components for batch processing
     │   ├── inbox/               # Sub-components for email sync tabs
     │   └── kanban/              # Kanban column & card components
     ├── hooks/
-    │   ├── useApplications.ts   # Core state management (localStorage persistence, CRUD)
+    │   ├── useApplications.ts   # Core state management (syncStatus, optimistic updates & fine-grained rollback)
     │   ├── useApplicationFilters.ts # Search, tag, date, and portal filtering
     │   ├── useBulkSelection.ts  # Multi-item selection for batch operations
     │   ├── useTheme.ts          # Light/Dark mode state management
     │   └── useToast.ts          # Notifications toast system
     ├── services/
-    │   ├── api.ts               # Frontend HTTP client communicating with /api
+    │   ├── api.ts               # Frontend HTTP client communicating with /api (typed error parsing, batchUpdate)
     │   ├── csvImport.service.ts # CSV parser, field detection, duplicate checks
     │   └── export.service.ts    # CSV and JSON exporter
     └── utils/
         ├── batchParser.ts       # Text line parser for batch URLs and titles
         ├── duplicateDetector.ts # Heuristics for detecting existing applications
         ├── linkParser.ts        # URL metadata extraction helpers
-        ├── metadataExtractor.ts # Clean title, company, and role deduction
-        ├── portalDetector.ts    # Detection of portals (Pracuj.pl, NoFluffJobs, LinkedIn, etc.)
+        ├── metadataExtractor.ts # Re-exports from shared/utils
+        ├── portalDetector.ts    # Re-exports from shared/utils
         ├── statusConfig.ts      # Colors, labels, and icons for application statuses
-        └── urlUtils.ts          # Normalization and domain extraction
+        ├── timelineUtils.ts     # Re-exports from shared/utils
+        └── urlUtils.ts          # Re-exports from shared/utils
 ```
 
 ---
@@ -189,13 +214,15 @@ docker compose down
 
 ### 2. TypeScript & Imports
 - Use path alias `@/*` mapping to `./*` as defined in `tsconfig.json` and `vite.config.ts`.
-- Prefer strict typing. Avoid `any` where domain types (`JobApplication`, `ApplicationStatus`, etc.) exist in `src/types.ts`.
+- Prefer strict typing. Avoid `any` where domain types (`JobApplication`, `ApplicationStatus`, etc.) exist in `shared/types`.
 - When adding new server endpoints, mount them modularly in `server/routes/` rather than expanding `server.ts`.
+- **Layer Isolation & Shared Domain Layer**: The backend (`server/`) **MUST NEVER** import from the frontend (`src/`). All shared domain models, interfaces, enums (`JobStatus`, `JobApplication`, `ApplicationTimelineEntry`, etc.) and pure utilities (`normalizeJobUrl`, `portalDetector`, `timeline` helpers) must reside in `shared/` (`shared/types/index.ts`, `shared/utils/*`). Frontend code in `src/` can import from `shared/`, and `src/types.ts` re-exports shared types for backward compatibility.
 
 ### 3. Frontend Architecture
 - State persistence: User applications and settings reside in `localStorage` via custom hooks (`useApplications.ts`).
 - UI consistency: Use Tailwind CSS utility classes and `lucide-react` icons. Maintain dark mode compatibility (`dark:` classes).
-- Keep components focused. Decompose large modals into dedicated sub-components within subdirectories (like `components/batch/` or `components/inbox/`).
+- Keep components focused. Decompose large modals into dedicated sub-components within subdirectories (like `components/batch/`, `components/inbox/`, or `components/job-modal/`).
+- Use atomic reusable components (`StatusBadge`, `PortalBadge`, `JobActionButtons`) from `src/components/common/` rather than re-implementing badge colors and action buttons inline.
 
 ### 4. Testing & Verification
 - Unit test files are located alongside their respective source files using the `*.test.ts` naming convention.
@@ -216,6 +243,8 @@ docker compose down
 - Whenever modifying `prisma/schema.prisma`, always run `npx prisma generate` to rebuild `@prisma/client`.
 - When adding new columns or changing schema in development, use `npx prisma db push`.
 - Nested structured arrays (`skills`, `timeline`, `contacts`) are serialized to JSON text columns in SQLite. Always use `safeJsonParse` fallbacks in `server/services/db.service.ts` to prevent runtime crashes on malformed data.
+- **Batch Operations & Concurrency Resilience**: Multi-record updates and inserts (e.g. `saveApplicationsBatch`, `updateApplicationsBatch`) must be wrapped in `prisma.$transaction` to guarantee atomicity. Concurrent SQLite writes can trigger `SQLITE_BUSY` or Prisma `P2034` transaction conflicts; always implement retries with exponential backoff (up to 3 attempts).
+- **Client-Side Optimistic Rollback**: Frontend state in `useApplications.ts` uses optimistic updates for instant UI response, but must implement fine-grained per-entity rollback on server sync failure to prevent race conditions from overwriting unrelated application states.
 - Frontend sync (`useApplications.ts`) transparently hydrates from `GET /api/applications` and bootstraps `localStorage` data to the backend database upon initial connection.
 
 ### 7. Git & Version Control Rules
@@ -236,4 +265,10 @@ docker compose down
 - **Scraper Text Boundaries**: Always preserve HTML block tags (`<br>`, `</p>`, `</div>`, `</li>`, headings) as line breaks (`\n`) before stripping tags. NEVER collapse an entire document's whitespace into a single line (`\s+ -> ' '`).
 - **UI View Scope Boundaries**: Adding features or stage tracking to one view (e.g. Calendar/Timeline) must NEVER alter or pollute unrelated views (e.g. Table) with unsolicited badges or metadata. Table rows must remain clean, dense, and easily scanable.
 
+### 10. Security & Input Validation (SSRF & Zod)
+- **SSRF Defense with DNS Verification**: Any endpoint fetching user-provided or external URLs (`scraper.service.ts`) must pass through `isSafeUrl`. It performs asynchronous DNS lookup (`dns.promises.lookup`) and rejects localhost, private networks (RFC 1918: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`), link-local / cloud metadata (`169.254.0.0/16`), IPv6 loopback / unique local / mapped IPv4 addresses, and unresolvable domains. This mitigates DNS rebinding and cloud credential theft.
+- **Express Input Validation via Zod**: All mutable API endpoints (`POST`, `PUT`, `DELETE` with payload) must validate `req.body` using Zod schemas (`server/schemas/`) and the `validateBody` middleware (`server/middleware/validate.ts`). Schemas must strip unexpected keys (never use `.passthrough()`) to prevent mass assignment and prototype pollution. Catch blocks must log error details internally and return sanitized JSON messages without leaking stack traces.
 
+### 11. Extensible Email Sync (Strategy Pattern)
+- **Strategy Pattern for Providers**: Email integrations (`server/services/email-sync.service.ts`) implement the `EmailSyncStrategy` interface (`OutlookSyncStrategy`, `GmailSyncStrategy`), resolved via `getEmailSyncStrategy(provider)`.
+- **Payload Optimization**: When fetching messages from Gmail API, always request metadata format (`format=metadata&metadataHeaders=Subject&metadataHeaders=From&metadataHeaders=Date`) rather than `format=full`, reducing network bandwidth and avoiding memory spikes from large MIME attachments.

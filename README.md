@@ -7,9 +7,10 @@
 ## 🇵🇱 Krótkie podsumowanie (PL)
 
 **Resume Tracker** to kompleksowe narzędzie ułatwiające zarządzanie procesem poszukiwania pracy:
-- 📊 **Wiele widoków**: Tablica Kanban (przeciągnij i upuść), tabela z wyszukiwaniem i sortowaniem, siatka kart oraz wizualne statystyki.
+- 📊 **Wiele widoków**: Tablica Kanban (przeciągnij i upuść), tabela z wyszukiwaniem i sortowaniem, siatka kart, kalendarz rekrutacyjny oraz wizualne statystyki.
 - 🤖 **Inteligentna analiza ofert (AI)**: Automatyczne parsowanie linków z portali ogłoszeniowych (np. Pracuj.pl, NoFluffJobs, LinkedIn, JustJoinIT) oraz czystego tekstu przy użyciu modelu Google Gemini.
-- 📬 **Synchronizacja ze skrzynką e-mail**: Integracja z Microsoft Outlook i Google Gmail (OAuth 2.0) lub ręczne wklejanie treści e-maili do automatycznego wykrywania zaproszeń na rozmowy, potwierdzeń i odrzuceń.
+- 📬 **Synchronizacja ze skrzynką e-mail**: Integracja z Microsoft Outlook i Google Gmail (OAuth 2.0 / wzorzec Strategy) lub ręczne wklejanie treści e-maili do automatycznego wykrywania zaproszeń na rozmowy, potwierdzeń i odrzuceń.
+- 💾 **Trwała baza danych i odporność**: Baza SQLite zarządzana przez Prisma ORM z atomowymi transakcjami, walidacją Zod, ochroną SSRF (z obroną przed DNS Rebinding) oraz optymistycznymi aktualizacjami z mechanizmem selektywnego rollbacku w UI.
 - ⚡ **Masowy import i eksport**: Dodawanie wielu linków naraz (batch processing), import z plików CSV z wykrywaniem duplikatów i mapowaniem kolumn oraz eksport do CSV/JSON.
 - 🐳 **Gotowość do wdrożenia**: Pełna konteneryzacja w środowisku Docker (multi-stage build z Bun).
 
@@ -21,6 +22,7 @@
   - **Kanban Board**: Drag-and-drop applications across recruitment stages (*Applied, Screening, Interviewing, Offer, Rejected, Archived*).
   - **Data Table**: Full-text search, column sorting, pagination, and quick tag filters.
   - **Card Grid**: Clean visual overview with color-coded status badges and action shortcuts.
+  - **Recruitment Calendar**: Track deadlines, interview dates, and recruitment milestones chronologically.
   - **Analytics & Metrics**: Real-time stats, conversion rates, and pipeline overview.
 - **AI-Powered Job Extraction**:
   - Automatically parses job descriptions from URLs or pasted text using **Google Gemini** (`@google/genai`).
@@ -28,9 +30,15 @@
   - **Deterministic Heuristics Fallback**: Built-in regex and DOM parsers ensure metadata extraction works even without an API key or when rate limits occur.
 - **Email Synchronization & Classification**:
   - Connects to **Microsoft Outlook** (Microsoft Graph API) and **Google Gmail** (Gmail API) via secure OAuth 2.0 popups.
+  - Extensible **Strategy Pattern** for providers with metadata-only fetching to eliminate heavy payload downloads.
   - Analyzes incoming recruiter emails to automatically detect status updates (interview invitations, rejections, acknowledgments).
+- **Enterprise-Grade Security & Data Integrity**:
+  - **SSRF Defense**: Deep URL & IP validation with asynchronous DNS resolution (`dns.promises.lookup`) blocking RFC 1918, loopback, link-local/cloud metadata, IPv6 mapped, and DNS rebinding attacks.
+  - **Schema Validation**: Express mutation endpoints validated with **Zod** (`server/schemas/`), stripping unrecognized attributes to avoid prototype pollution and mass assignment.
+  - **Atomic Transactions & Retry**: SQLite batch writes via `prisma.$transaction` with automatic exponential backoff retry on `SQLITE_BUSY` / `P2034` locks.
+  - **Optimistic UI with Fine-Grained Rollback**: Frontend updates instantly with per-entity rollback resilience against concurrent race conditions.
 - **Batch Processing & Ingestion**:
-  - Paste dozens of job links or descriptions simultaneously; the background queue extracts and creates applications automatically.
+  - Paste dozens of job links or descriptions simultaneously; atomic backend batch endpoints process them reliably.
 - **CSV & JSON Import / Export**:
   - Flexible CSV importer with column auto-detection and duplicate application prevention.
   - One-click backup and export to standard CSV or JSON.
@@ -49,8 +57,14 @@
 - **Icons**: [Lucide React](https://lucide.dev/)
 - **Language**: [TypeScript](https://www.typescriptlang.org/)
 
+### Shared Domain Layer
+- **Shared Contracts**: Single source of truth in `shared/types/index.ts` for clean layer isolation.
+- **Shared Utilities**: Pure domain functions for URL normalization, timeline transitions, and metadata in `shared/utils/`.
+
 ### Backend
 - **Framework**: [Express 4](https://expressjs.com/)
+- **Database & ORM**: SQLite (`tracker.db`) via [Prisma ORM](https://www.prisma.io/) (`@prisma/client`)
+- **Validation**: [Zod](https://zod.dev/) request body schemas & middleware
 - **AI Engine**: [Google Gen AI SDK](https://github.com/google/generative-ai-js) (`@google/genai`)
 - **Runtime**: [Bun](https://bun.sh/) / [Node.js](https://nodejs.org/) (executed with `tsx` in dev, bundled with `esbuild` for production)
 - **Testing**: [Vitest](https://vitest.dev/) with `@testing-library/react` and `jsdom`
@@ -67,18 +81,30 @@ Resume-tracker/
 ├── docker-compose.yml           # Docker Compose configuration
 ├── .env.example                 # Environment variables template
 │
-├── server/                      # Backend implementation
+├── prisma/
+│   └── schema.prisma            # Prisma SQLite schema & Application model definition
+│
+├── shared/                      # Shared domain layer (isolated from React / Express)
+│   ├── types/                   # Unified domain types & interfaces
+│   └── utils/                   # URL normalization, timeline state transitions, portal detector
+│
+├── server/                      # Backend implementation (Express)
+│   ├── app.ts                   # Express app configuration & middleware
 │   ├── config/                  # Environment variable configuration
 │   ├── data/                    # Sample data for offline testing
-│   ├── routes/                  # Express API routes (auth, emails, gemini, jobs)
-│   └── services/                # Gemini client, email sync, scraper & heuristics
+│   ├── middleware/              # Zod validation & PNA CORS middleware
+│   ├── routes/                  # Express API routes (applications, auth, emails, gemini, jobs)
+│   ├── schemas/                 # Zod validation schemas for request bodies
+│   └── services/                # DB (Prisma), email sync (Strategy), scraper (SSRF safe), heuristics
 │
-└── src/                         # Frontend implementation
-    ├── components/              # UI components (Kanban, Table, Grid, Modals)
+└── src/                         # Frontend implementation (React)
+    ├── components/              # UI components (Kanban, Table, Grid, Calendar, Modals)
     │   ├── batch/               # Batch link processing components
+    │   ├── common/              # Reusable atomic UI (StatusBadge, PortalBadge, JobActionButtons)
     │   ├── inbox/               # Email synchronization tabs
+    │   ├── job-modal/           # Decomposed job editor modal sections & form hook
     │   └── kanban/              # Kanban columns and cards
-    ├── hooks/                   # Custom React hooks (storage, filters, selection, theme)
+    ├── hooks/                   # Custom React hooks (storage, sync status, filters, theme)
     ├── services/                # API client, CSV import/export services
     └── utils/                   # Portal detector, metadata extractors, status config
 ```
