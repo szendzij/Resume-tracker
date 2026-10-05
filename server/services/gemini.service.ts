@@ -110,7 +110,7 @@ Zidentyfikuj i wyodrębnij w języku polskim:
 2. "company": Rzeczywista nazwa zatrudniającej firmy/pracodawcy (np. "Optiveum", "Spyrosoft", "GFT Poland", "Sportano.com", "Kadromierz", "Kuehne+Nagel", "PPG", "SoftServe"). 
    BARDZO WAŻNE: NIGDY nie wpisuj nazwy portalu ogłoszeniowego (np. "The Protocol", "Pracuj.pl", "NoFluffJobs", "LinkedIn", "Just Join IT") jako firmy! Szukaj etykiety "Firma:", "Pracodawca:" lub nazwy w tytule/treści.
 3. "location": Lokalizacja miasta lub kraju (np. "Gdańsk", "Wrocław", "Warszawa", "Kraków", "Polska").
-4. "salary": Dokładne wynagrodzenie i stawka jeśli podana w ofercie (np. "120 - 120 zł netto (+ VAT) / godz.", "18 000 - 24 000 PLN", "120 zł/h B2B"). Jeśli brak, wpisz pusty ciąg "".
+4. "salary": Tylko i wyłącznie zwięzła kwota/widełki wynagrodzenia oraz waluta i okres (np. "120 - 120 zł netto (+ VAT) / godz.", "18 000 - 24 000 PLN", "120 zł/h B2B"). Maksymalnie 50 znaków. BARDZO WAŻNE: NIGDY nie wklejaj tu opisu oferty, wymagań, technologii ani żadnej treści ogłoszenia! Jeśli brak wynagrodzenia w ofercie, wpisz pusty ciąg "".
 5. "workType": Tryb świadczenia pracy: dokładnie jedno z: "Zdalnie", "Hybrydowo" lub "Stacjonarnie". Jeśli oferta wspomina o pracy hybrydowej (np. "tryb pracy: hybrydowa"), wybierz "Hybrydowo".
 6. "portal": Nazwa portalu (np. "The Protocol", "LinkedIn", "NoFluffJobs", "Just Join IT", "Pracuj.pl" itp.).
 7. "skills": Tablica głównych wymaganych technologii i narzędzi wymienionych w ofercie (np. ["Python", "Robot Framework", "SQL", "Jenkins", "Git", "Jira", "Selenium"]).
@@ -132,7 +132,11 @@ Zidentyfikuj i wyodrębnij w języku polskim:
               role: { type: Type.STRING, description: 'Nazwa stanowiska' },
               company: { type: Type.STRING, description: 'Nazwa firmy (nie portalu!)' },
               location: { type: Type.STRING, description: 'Lokalizacja pracy' },
-              salary: { type: Type.STRING, description: 'Wynagrodzenie jeśli podane w ofercie' },
+              salary: {
+                type: Type.STRING,
+                description:
+                  'Tylko zwięzła kwota/widełki wynagrodzenia (max 50 znaków, np. "18 000 - 24 000 PLN"). NIGDY treść oferty. Puste "" jeśli brak.',
+              },
               workType: { type: Type.STRING, description: 'Tryb pracy: "Zdalnie", "Hybrydowo" lub "Stacjonarnie"' },
               portal: { type: Type.STRING, description: 'Portal rekrutacyjny lub źródło' },
               skills: {

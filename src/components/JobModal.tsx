@@ -210,7 +210,17 @@ export const JobModal: React.FC<JobModalProps> = ({
         }
       }
       if (data.location) setLocation(data.location);
-      if (data.salary) setSalary(data.salary);
+      if (data.salary) {
+        const rawSal = typeof data.salary === 'string' ? data.salary.trim() : '';
+        if (rawSal.length <= 80 && !rawSal.includes('\n')) {
+          setSalary(rawSal);
+        } else if (rawSal) {
+          const firstLine = rawSal.split('\n')[0].trim();
+          if (firstLine.length <= 80) {
+            setSalary(firstLine);
+          }
+        }
+      }
       if (data.skills && Array.isArray(data.skills)) {
         setSkills(Array.from(new Set([...skills, ...data.skills])));
       }

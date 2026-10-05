@@ -92,6 +92,42 @@ function cleanCompanyName(raw: string): string {
 }
 
 /**
+ * Cleans and validates a salary string, ensuring job description text is never included.
+ */
+export function cleanSalary(rawSalary?: string): string {
+  if (!rawSalary) return '';
+  let s = String(rawSalary).trim();
+  // Strip trailing punctuation except abbreviations ending with dot (e.g. godz., mies., m-c.)
+  s = s.replace(/(?<!\b(?:godz|mies|m-c|tydz))\.\s*$/, '').replace(/[,;:\s]+$/, '').trim();
+
+  // Strip narrative words and full sentences that may follow
+  const narrativePattern = /(?:\.\s+[A-ZĄĆĘŁŃÓŚŹŻa-ząćęłńóśźż]|\b(?:opis|wymagani|obowiązk|oferujem|stanowisk|doświadczeni|nasz|zespół|projekt|poszukuj|aplikuj|kandydat|benefity|lokalizacj)\b)/i;
+  const cutIndex = s.search(narrativePattern);
+  if (cutIndex > 0) {
+    s = s.slice(0, cutIndex).trim();
+  }
+
+  // Strictly capture valid salary format (range or single rate with currency & qualifier)
+  const strictSalaryRegex = /^(\d[\d\s,.]*(?:[-–—]|do)?\s*(?:\d[\d\s,.]*)?\s*(?:zł|PLN|EUR|USD|GBP|k\b)(?:\s*(?:netto|brutto|net|gross|(?:\+?\s*VAT)|\bB2B\b|\bUoP\b|\bUoD\b|\bUoZ\b|\([A-Za-z0-9\s+]+\)|\/\s*(?:h|godz(?:in[aę])?\.?|m(?:ies(?:iąc|ięcznie)?)?\.?|day|dzień|m-c\.?|rok|yr|mo|month|mth)))*)/i;
+  const match = s.match(strictSalaryRegex);
+  if (match && match[1]) {
+    s = match[1].trim();
+  }
+
+  // Absolute length safety guard
+  if (s.length > 70) {
+    return '';
+  }
+
+  // Reject if it doesn't contain a number and a currency or rate
+  if (!/\d/.test(s) || !/(?:zł|PLN|EUR|USD|GBP|k\b|\/h|\/godz)/i.test(s)) {
+    return '';
+  }
+
+  return s;
+}
+
+/**
  * Fallback metadata extractor from rawText, linkTitle & known URLs
  */
 export function extractHeuristicJob(
@@ -168,14 +204,13 @@ export function extractHeuristicJob(
       }
     }
 
-    // Salary from rawText
-    const lines = rawText.split('\n');
-    for (const line of lines) {
-      const salaryMatch = line.match(/(?:^|[^\d])(\d+[\s\d]*\s*[-–]\s*\d+[\s\d]*\s*(?:zł|PLN|EUR|USD|netto|brutto|godz|\/h)[^\n\r]*)/i);
-      if (salaryMatch && salaryMatch[1]) {
-        salary = salaryMatch[1].trim();
-        break;
-      }
+    // Salary from rawText (strict extraction without greedily capturing offer description)
+    const salaryRegex = /(?:^|[^\d])(\d[\d\s,.]*\s*(?:[-–—]|do)\s*\d[\d\s,.]*\s*(?:zł|PLN|EUR|USD|GBP|k\b)(?:\s*(?:netto|brutto|net|gross|\(\+?\s*VAT\)|\bB2B\b|\bUoP\b|\bUoD\b|\bUoZ\b|\/\s*(?:h|godz(?:in[aę])?\.?|m(?:ies(?:iąc|ięcznie)?)?\.?|day|dzień|m-c\.?|rok|yr|mo|month|mth)))*)/i;
+    const singleSalaryRegex = /(?:^|[^\d])(\d[\d\s,.]*\s*(?:zł|PLN|EUR|USD|GBP)(?:\s*(?:netto|brutto|net|gross|\(\+?\s*VAT\)|\bB2B\b|\bUoP\b|\bUoD\b|\bUoZ\b|\/\s*(?:h|godz(?:in[aę])?\.?|m(?:ies(?:iąc|ięcznie)?)?\.?|day|dzień|m-c\.?|rok|yr|mo|month|mth)))*)/i;
+
+    const salMatch = rawText.match(salaryRegex) || rawText.match(singleSalaryRegex);
+    if (salMatch && salMatch[1]) {
+      salary = cleanSalary(salMatch[1]);
     }
 
     // Work type

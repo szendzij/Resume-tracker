@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { deducePortalAndHints, extractHeuristicJob } from '../services/heuristics.service';
+import { deducePortalAndHints, extractHeuristicJob, cleanSalary } from '../services/heuristics.service';
 import { fetchPageExcerpt } from '../services/scraper.service';
 import { getGemini, parseSingleJobWithGemini, parseBatchChunkWithGemini } from '../services/gemini.service';
 import { extractMetadataFromTitleAndUrl } from '../../src/utils/linkParser';
@@ -22,7 +22,10 @@ jobsRouter.post(['/parse-job', '/jobs/parse-job'], async (req: Request, res: Res
 
   if (!ai) {
     const heuristicJob = extractHeuristicJob(url, linkTitle, portal, hints, rawText);
-    res.json(heuristicJob);
+    res.json({
+      ...heuristicJob,
+      salary: cleanSalary(heuristicJob.salary),
+    });
     return;
   }
 
@@ -40,7 +43,7 @@ jobsRouter.post(['/parse-job', '/jobs/parse-job'], async (req: Request, res: Res
       role: parsedJson.role || hints.role || 'QA Engineer',
       company: parsedJson.company || hints.company || 'Nieznana firma',
       location: parsedJson.location || hints.location || 'Polska / Remote',
-      salary: parsedJson.salary || '',
+      salary: cleanSalary(parsedJson.salary || ''),
       workType: parsedJson.workType || '',
       portal: parsedJson.portal || portal,
       skills: Array.isArray(parsedJson.skills) ? parsedJson.skills : [],
@@ -52,6 +55,7 @@ jobsRouter.post(['/parse-job', '/jobs/parse-job'], async (req: Request, res: Res
     const heuristicJob = extractHeuristicJob(url, linkTitle, portal, hints, rawText);
     res.json({
       ...heuristicJob,
+      salary: cleanSalary(heuristicJob.salary),
       notes: heuristicJob.notes ? `${heuristicJob.notes} (AI fallback)` : 'Pobrano dane heurystycznie z oferty.',
       source: 'fallback',
     });

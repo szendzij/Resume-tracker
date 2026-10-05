@@ -33,16 +33,22 @@ export async function fetchPageExcerpt(urlStr: string, timeoutMs: number = 6000)
     const ogTitle = ogTitleMatch ? ogTitleMatch[1].trim() : '';
     const ogDesc = ogDescMatch ? ogDescMatch[1].trim() : '';
 
-    // Strip out script and style tags
-    const cleanBody = html
+    // Strip out script and style tags, convert block breaks to newlines
+    const htmlWithBreaks = html
       .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
       .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 3000);
+      .replace(/<\/(p|div|li|h[1-6]|tr|section|article)>/gi, '\n')
+      .replace(/<br\s*\/?>/gi, '\n');
 
-    return `Page Title: ${title || ogTitle}\nDescription: ${desc || ogDesc}\nContent excerpt: ${cleanBody}`;
+    const cleanBody = htmlWithBreaks
+      .replace(/<[^>]+>/g, ' ')
+      .split('\n')
+      .map((line) => line.replace(/[ \t]+/g, ' ').trim())
+      .filter((line) => line.length > 0)
+      .join('\n')
+      .slice(0, 3500);
+
+    return `Page Title: ${title || ogTitle}\nDescription: ${desc || ogDesc}\nContent excerpt:\n${cleanBody}`;
   } catch {
     clearTimeout(timeoutId);
     return '';

@@ -858,10 +858,23 @@ export async function initPopup() {
       finalCompany = '';
     }
 
+    let safeSalary = (parsedData.salary || '').trim();
+    if (
+      safeSalary.length > 70 ||
+      /(?:wymagani|obowiązk|oferujem|stanowisk|doświadczeni|nasz|zespół|projekt|poszukuj|aplikuj|kandydat|praca|benefity)/i.test(
+        safeSalary
+      )
+    ) {
+      const match = safeSalary.match(
+        /^(\d[\d\s,.]*(?:[-–—]|do)?\s*(?:\d[\d\s,.]*)?\s*(?:zł|PLN|EUR|USD|GBP|k\b)(?:\s*(?:netto|brutto|net|gross|\(\+?\s*VAT\)|\bB2B\b|\bUoP\b|\/\s*(?:h|godz(?:in[aę])?|m(?:ies(?:iąc|ięcznie)?)?|day|dzień|m-c|rok|yr|mo|month)))*)/i
+      );
+      safeSalary = match && match[1] && match[1].length <= 70 ? match[1].trim() : '';
+    }
+
     if (roleInput) roleInput.value = parsedData.role || extracted.title || '';
     if (companyInput) companyInput.value = finalCompany;
     if (locationInput) locationInput.value = parsedData.location || '';
-    if (salaryInput) salaryInput.value = parsedData.salary || '';
+    if (salaryInput) salaryInput.value = safeSalary;
     if (portalInput) portalInput.value = portalVal;
     if (statusSelect) statusSelect.value = parsedData.status || 'Do zaaplikowania';
     if (notesTextarea) notesTextarea.value = parsedData.notes || '';

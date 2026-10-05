@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { deducePortalAndHints, extractHeuristicJob } from './heuristics.service';
+import { deducePortalAndHints, extractHeuristicJob, cleanSalary } from './heuristics.service';
 
 describe('server heuristics.service', () => {
   describe('deducePortalAndHints', () => {
@@ -92,5 +92,92 @@ describe('server heuristics.service', () => {
       // Must NEVER set company to portal
       expect(job.company).not.toBe('The Protocol');
     });
+
+    it('should never leak offer description into salary field when rawText has offer narrative', () => {
+      const rawText = `
+        Senior Frontend Engineer
+        Firma: Example Corp
+        Wynagrodzenie: 18 000 - 24 000 PLN B2B. Szukamy zmotywowanej osoby, która dołączy do naszego dynamicznego zespołu. Oferujemy pracę przy międzynarodowych projektach w nowoczesnym biurze w Warszawie oraz pakiet benefitów Medicover i Multisport.
+        Wymagania: React, TypeScript
+      `;
+
+      const job = extractHeuristicJob(
+        'https://example.com/job/senior-frontend',
+        'Senior Frontend Engineer | Example Corp',
+        'Inny portal',
+        undefined,
+        rawText
+      );
+
+      expect(job.salary).toBe('18 000 - 24 000 PLN B2B');
+      expect(job.salary).not.toContain('Szukamy');
+      expect(job.salary).not.toContain('Medicover');
+    });
+  });
+
+  describe('cleanSalary', () => {
+    it('should strip trailing narrative text from salary string', () => {
+      const raw = '20 000 - 25 000 PLN netto B2B. Dołącz do naszego zespołu i rozwijaj się w fintechu!';
+      const cleaned = cleanSalary(raw);
+      expect(cleaned).toBe('20 000 - 25 000 PLN netto B2B');
+    });
+
+    it('should reject salary if it is pure text or description without numbers', () => {
+      expect(cleanSalary('Atrakcyjne wynagrodzenie uzależnione od doświadczenia oraz pakiet benefitów.')).toBe('');
+      expect(cleanSalary(undefined)).toBe('');
+    });
+
+    it('should truncate and clean runaway salaries exceeding 70 characters', () => {
+      const longNarrative = '15 000 - 20 000 PLN miesięcznie wraz z roczną premią uznaniową, pakietem opieki medycznej Enel-Med, kartą Multisport Plus oraz dofinansowaniem do nauki języka angielskiego.';
+      const cleaned = cleanSalary(longNarrative);
+      expect(cleaned.length).toBeLessThanOrEqual(70);
+      expect(cleaned).toContain('15 000 - 20 000 PLN');
+      expect(cleaned).not.toContain('Multisport');
+    });
+
+    it('should strip newline characters and keep only the salary line', () => {
+      const multiline = '25 000 PLN B2B\nDo Twoich obowiązków należeć będzie projektowanie architektury mikroserwisów.';
+      const cleaned = cleanSalary(multiline);
+      expect(cleaned).toBe('25 000 PLN B2B');
+      expect(cleaned).not.toContain('obowiązków');
+    });
+
+    it('should properly recognize Polish formats with zł brutto / netto', () => {
+      expect(cleanSalary('12 000 - 16 000 zł brutto')).toBe('12 000 - 16 000 zł brutto');
+      expect(cleanSalary('180 - 220 zł/h netto B2B')).toBe('180 - 220 zł/h netto B2B');
+    });
+  });
+
+  describe('extractHeuristicJob - offer text isolation', () => {
+    it('does not leak paragraphs of job description when salary is in the middle of long text', () => {
+      const hugeRawText = `
+        O nas:
+        Jesteśmy liderem w branży e-commerce tworzącym skalowalne platformy webowe dla milionów użytkowników dziennie.
+        
+        Widełki: 22 000 - 28 000 PLN + VAT (B2B)
+        
+        Zakres obowiązków:
+        - Projektowanie i wdrażanie nowych funkcjonalności w React i Node.js
+        - Dbanie o jakość kodu i architekturę
+        - Pisanie testów jednostkowych i integracyjnych
+        
+        Wymagania:
+        - Min. 4 lata doświadczenia komercyjnego
+        - Bardzo dobra znajomość TypeScript, Tailwind CSS
+      `;
+
+      const job = extractHeuristicJob(
+        'https://example.com/job/senior-dev',
+        'Senior Fullstack Engineer',
+        'LinkedIn',
+        undefined,
+        hugeRawText
+      );
+
+      expect(job.salary).toBe('22 000 - 28 000 PLN + VAT (B2B)');
+      expect(job.salary).not.toContain('Zakres');
+      expect(job.salary).not.toContain('Wymagania');
+    });
   });
 });
+
