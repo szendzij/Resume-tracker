@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { JobApplication, JobStatus } from '../types';
-import { ALL_STATUSES, POPULAR_PORTALS } from '../utils/statusConfig';
+import { JobApplication, JobStatus, ApplicationTimelineEntry } from '../types';
+import { ALL_STATUSES, POPULAR_PORTALS, STATUS_CONFIG } from '../utils/statusConfig';
 import {
   detectDuplicate,
   DuplicateCandidate,
@@ -21,6 +21,9 @@ import {
   AlertTriangle,
   ExternalLink,
   ShieldAlert,
+  Clock,
+  Plus,
+  Trash2,
 } from 'lucide-react';
 
 interface JobModalProps {
@@ -45,6 +48,7 @@ export const JobModal: React.FC<JobModalProps> = ({
   const [url, setUrl] = useState('');
   const [appliedDate, setAppliedDate] = useState(new Date().toISOString().split('T')[0]);
   const [status, setStatus] = useState<JobStatus>('Wysłana');
+  const [timeline, setTimeline] = useState<ApplicationTimelineEntry[]>([]);
   const [location, setLocation] = useState('');
   const [salary, setSalary] = useState('');
   const [skillInput, setSkillInput] = useState('');
@@ -70,20 +74,41 @@ export const JobModal: React.FC<JobModalProps> = ({
         setCustomPortal(initialData.portal || '');
       }
       setUrl(initialData.url || '');
-      setAppliedDate(initialData.appliedDate || new Date().toISOString().split('T')[0]);
-      setStatus(initialData.status || 'Wysłana');
+      const initDate = initialData.appliedDate || new Date().toISOString().split('T')[0];
+      setAppliedDate(initDate);
+      const initStatus = initialData.status || 'Wysłana';
+      setStatus(initStatus);
+      if (initialData.timeline && initialData.timeline.length > 0) {
+        setTimeline(initialData.timeline);
+      } else {
+        setTimeline([
+          {
+            id: `tl-init-${initialData.id || Date.now()}`,
+            status: initStatus,
+            date: initDate,
+          },
+        ]);
+      }
       setLocation(initialData.location || '');
       setSalary(initialData.salary || '');
       setSkills(initialData.skills || []);
       setNotes(initialData.notes || '');
     } else {
+      const today = new Date().toISOString().split('T')[0];
       setRole('');
       setCompany('');
       setPortal('LinkedIn');
       setCustomPortal('');
       setUrl('');
-      setAppliedDate(new Date().toISOString().split('T')[0]);
+      setAppliedDate(today);
       setStatus('Wysłana');
+      setTimeline([
+        {
+          id: `tl-${Date.now()}`,
+          status: 'Wysłana',
+          date: today,
+        },
+      ]);
       setLocation('');
       setSalary('');
       setSkills([]);
@@ -208,6 +233,55 @@ export const JobModal: React.FC<JobModalProps> = ({
     }
   };
 
+  const handleAddTimelineEntry = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const newEntry: ApplicationTimelineEntry = {
+      id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      status: 'Rozmowa HR',
+      date: today,
+      notes: '',
+    };
+    setTimeline((prev) => [...prev, newEntry]);
+  };
+
+  const handleUpdateTimelineEntry = (
+    id: string,
+    field: 'status' | 'date' | 'notes',
+    value: string
+  ) => {
+    setTimeline((prev) =>
+      prev.map((entry) => {
+        if (entry.id !== id) return entry;
+        if (field === 'status') {
+          return { ...entry, status: value as JobStatus };
+        }
+        return { ...entry, [field]: value };
+      })
+    );
+  };
+
+  const handleRemoveTimelineEntry = (id: string) => {
+    setTimeline((prev) => prev.filter((entry) => entry.id !== id));
+  };
+
+  const handleStatusSelectChange = (newStatus: JobStatus) => {
+    setStatus(newStatus);
+    const today = new Date().toISOString().split('T')[0];
+    setTimeline((prev) => {
+      if (prev.length > 0 && prev[prev.length - 1].status === newStatus) {
+        return prev;
+      }
+      return [
+        ...prev,
+        {
+          id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          status: newStatus,
+          date: today,
+        },
+      ];
+    });
+  };
+
   const executeSave = () => {
     const finalPortal = portal === 'Inny portal' ? customPortal.trim() || 'Inny portal' : portal;
 
@@ -221,6 +295,7 @@ export const JobModal: React.FC<JobModalProps> = ({
       location: location.trim(),
       salary: salary.trim(),
       skills,
+      timeline,
       notes: notes.trim(),
       lastUpdated: new Date().toISOString(),
     });
@@ -522,7 +597,7 @@ export const JobModal: React.FC<JobModalProps> = ({
               <select
                 id="job-status-select"
                 value={status}
-                onChange={(e) => setStatus(e.target.value as JobStatus)}
+                onChange={(e) => handleStatusSelectChange(e.target.value as JobStatus)}
                 className="w-full px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-medium"
               >
                 {ALL_STATUSES.map((st) => (
@@ -544,11 +619,118 @@ export const JobModal: React.FC<JobModalProps> = ({
                   type="date"
                   required
                   value={appliedDate}
-                  onChange={(e) => setAppliedDate(e.target.value)}
+                  onChange={(e) => {
+                    const newDate = e.target.value;
+                    setAppliedDate(newDate);
+                    setTimeline((prev) => {
+                      if (
+                        prev.length > 0 &&
+                        (prev[0].status === 'Wysłana' || prev[0].status === 'Do zaaplikowania')
+                      ) {
+                        return prev.map((entry, idx) =>
+                          idx === 0 ? { ...entry, date: newDate } : entry
+                        );
+                      }
+                      return prev;
+                    });
+                  }}
                   className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm text-slate-900 dark:text-slate-100 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-mono"
                 />
               </div>
             </div>
+          </div>
+
+          {/* Status Timeline & Stage Dates */}
+          <div className="bg-slate-50 dark:bg-slate-850 p-3.5 rounded-xl border border-slate-200 dark:border-slate-800 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                  Historia etapów i daty statusów
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={handleAddTimelineEntry}
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/60 border border-blue-200 dark:border-blue-800/80 transition-colors cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Dodaj etap</span>
+              </button>
+            </div>
+
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Oznaczaj dokładne daty, kiedy odbyła się rozmowa z HR, rozmowa techniczna lub nastąpiła zmiana etapu.
+            </p>
+
+            {timeline.length === 0 ? (
+              <div className="text-center py-3 text-xs text-slate-400">
+                Brak zarejestrowanych etapów. Kliknij &quot;Dodaj etap&quot;, aby dodać datę statusu.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {timeline.map((entry, idx) => (
+                  <div
+                    key={entry.id || idx}
+                    className="flex flex-col sm:flex-row sm:items-center gap-2 p-2 rounded-lg bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 text-xs shadow-2xs"
+                  >
+                    {/* Status selector for this entry */}
+                    <div className="w-full sm:w-44 shrink-0">
+                      <select
+                        value={entry.status}
+                        onChange={(e) =>
+                          handleUpdateTimelineEntry(entry.id, 'status', e.target.value)
+                        }
+                        className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                      >
+                        {ALL_STATUSES.map((st) => (
+                          <option key={st} value={st}>
+                            {st}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Date Picker */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                      <input
+                        type="date"
+                        value={entry.date}
+                        onChange={(e) =>
+                          handleUpdateTimelineEntry(entry.id, 'date', e.target.value)
+                        }
+                        className="px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs font-mono text-slate-800 dark:text-slate-200 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Optional Notes */}
+                    <div className="flex-1 min-w-0">
+                      <input
+                        type="text"
+                        value={entry.notes || ''}
+                        onChange={(e) =>
+                          handleUpdateTimelineEntry(entry.id, 'notes', e.target.value)
+                        }
+                        placeholder="Notatka do etapu (np. rozmowa z rekruterem)..."
+                        className="w-full px-2 py-1.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-md text-xs text-slate-800 dark:text-slate-200 placeholder-slate-400 focus:outline-hidden focus:ring-1 focus:ring-blue-500"
+                      />
+                    </div>
+
+                    {/* Remove entry button */}
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveTimelineEntry(entry.id)}
+                      disabled={timeline.length <= 1}
+                      title={timeline.length <= 1 ? 'Wymagany co najmniej jeden etap' : 'Usuń ten etap'}
+                      className="p-1.5 text-slate-400 hover:text-rose-600 disabled:opacity-30 disabled:cursor-not-allowed rounded cursor-pointer shrink-0 self-end sm:self-center"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Location and Salary */}

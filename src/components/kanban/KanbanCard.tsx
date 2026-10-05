@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { JobApplication, JobStatus } from '../../types';
-import { STATUS_CONFIG, getPortalBadgeStyle, ALL_STATUSES } from '../../utils/statusConfig';
+import { STATUS_CONFIG, getPortalBadgeStyle, ALL_STATUSES, getLatestStatusDate } from '../../utils/statusConfig';
 import {
   Building2,
   Calendar,
@@ -34,6 +34,7 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   const [showStatusPicker, setShowStatusPicker] = useState(false);
   const statusCfg = STATUS_CONFIG[app.status];
   const portalBadge = getPortalBadgeStyle(app.portal);
+  const latestStatusDate = getLatestStatusDate(app);
 
   return (
     <div
@@ -140,9 +141,17 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
 
       {/* Footer: Date, Status trigger, Link */}
       <div className="pt-2 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs">
-        <div className="flex items-center gap-1 text-[11px] text-slate-400">
+        <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
           <Calendar className="w-3 h-3" />
-          <span>{app.appliedDate}</span>
+          <span title={`Data wysłania: ${app.appliedDate}`}>{app.appliedDate}</span>
+          {latestStatusDate && latestStatusDate !== app.appliedDate && (
+            <span
+              title={`Data obecnego etapu (${app.status}): ${latestStatusDate}`}
+              className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 font-medium border border-blue-100 dark:border-blue-900/40"
+            >
+              etap: {latestStatusDate}
+            </span>
+          )}
         </div>
 
         <div className="relative">

@@ -9,6 +9,13 @@ export type JobStatus =
   | 'Odrzucona'
   | 'Zrezygnowano';
 
+export interface ApplicationTimelineEntry {
+  id: string;
+  status: JobStatus;
+  date: string; // YYYY-MM-DD
+  notes?: string;
+}
+
 export interface JobApplication {
   id: string;
   role: string;
@@ -20,6 +27,7 @@ export interface JobApplication {
   location?: string;
   salary?: string;
   skills?: string[];
+  timeline?: ApplicationTimelineEntry[];
   notes?: string;
   lastUpdated?: string;
 }

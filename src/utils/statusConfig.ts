@@ -1,4 +1,4 @@
-import { JobStatus } from '../types';
+import { JobApplication, JobStatus } from '../types';
 
 export interface StatusMeta {
   label: JobStatus;
@@ -217,4 +217,20 @@ export function getPortalBadgeStyle(portal: string): { bg: string; text: string;
     text: 'text-slate-700 dark:text-slate-300',
     border: 'border-slate-200 dark:border-slate-700',
   };
+}
+
+export function getLatestStatusDate(app: JobApplication): string {
+  if (app.timeline && app.timeline.length > 0) {
+    const statusMatch = [...app.timeline].reverse().find((t) => t.status === app.status);
+    if (statusMatch?.date) return statusMatch.date;
+    const lastEntry = app.timeline[app.timeline.length - 1];
+    if (lastEntry?.date) return lastEntry.date;
+  }
+  return app.appliedDate;
+}
+
+export function getTimelineStatusDate(app: JobApplication, status: JobStatus): string | undefined {
+  if (!app.timeline) return undefined;
+  const match = [...app.timeline].reverse().find((t) => t.status === status);
+  return match?.date;
 }

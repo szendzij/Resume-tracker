@@ -6,6 +6,7 @@ import {
   getPortalBadgeStyle,
   getRelativeDays,
   STATUS_CONFIG,
+  getLatestStatusDate,
 } from '../utils/statusConfig';
 import {
   ExternalLink,
@@ -159,18 +160,34 @@ export const JobGrid: React.FC<JobGridProps> = ({
 
             {/* Bottom Status & Actions Bar */}
             <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-              <select
-                id={`grid-status-${app.id}`}
-                value={app.status}
-                onChange={(e) => onStatusChange(app.id, e.target.value as JobStatus)}
-                className={`px-2.5 py-1 rounded-md text-xs font-semibold border cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 ${statusMeta.bg} ${statusMeta.text} ${statusMeta.border}`}
-              >
-                {ALL_STATUSES.map((st) => (
-                  <option key={st} value={st} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-normal">
-                    {st}
-                  </option>
-                ))}
-              </select>
+              <div className="flex flex-col">
+                <select
+                  id={`grid-status-${app.id}`}
+                  value={app.status}
+                  onChange={(e) => onStatusChange(app.id, e.target.value as JobStatus)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold border cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 ${statusMeta.bg} ${statusMeta.text} ${statusMeta.border}`}
+                >
+                  {ALL_STATUSES.map((st) => (
+                    <option key={st} value={st} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 font-normal">
+                      {st}
+                    </option>
+                  ))}
+                </select>
+                {(() => {
+                  const statusDate = getLatestStatusDate(app);
+                  if (statusDate && statusDate !== app.appliedDate) {
+                    return (
+                      <span
+                        title={`Data etapu ${app.status}: ${statusDate}`}
+                        className="text-[10px] text-blue-600 dark:text-blue-400 font-mono mt-0.5"
+                      >
+                        etap: {formatPolishDate(statusDate)}
+                      </span>
+                    );
+                  }
+                  return null;
+                })()}
+              </div>
 
               <div className="flex items-center gap-1">
                 {app.url && (

@@ -6,6 +6,7 @@ import {
   getPortalBadgeStyle,
   getRelativeDays,
   STATUS_CONFIG,
+  getLatestStatusDate,
 } from '../utils/statusConfig';
 import {
   ExternalLink,
@@ -253,6 +254,20 @@ export const JobTable: React.FC<JobTableProps> = ({
                         </option>
                       ))}
                     </select>
+                    {(() => {
+                      const statusDate = getLatestStatusDate(app);
+                      if (statusDate && statusDate !== app.appliedDate) {
+                        return (
+                          <div
+                            title={`Data etapu ${app.status}: ${statusDate}`}
+                            className="text-[10px] text-blue-600 dark:text-blue-400 font-mono mt-0.5"
+                          >
+                            etap: {formatPolishDate(statusDate)}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </td>
 
                   {/* Location & Salary */}

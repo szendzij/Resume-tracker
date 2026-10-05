@@ -18,6 +18,7 @@ model Application {
   location       String?
   salary         String?
   skills         String?  // JSON string array: string[]
+  timeline       String?  // JSON string: ApplicationTimelineEntry[]
   notes          String?
   lastUpdated    String?
 

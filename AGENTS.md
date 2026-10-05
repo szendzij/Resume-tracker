@@ -45,6 +45,12 @@ Key capabilities:
 
 ```
 Resume-tracker/
+├── .agents/                     # AI Agent configuration, skills, rules, hooks and workflows (ECC)
+│   ├── agents/                  # Specialized subagents definitions
+│   ├── hooks/                   # Lifecycle & safety hooks (GateGuard, audit, summary)
+│   ├── rules/                   # Coding style, security, testing, and architecture rules
+│   ├── skills/                  # Domain skills (TDD workflow, Bun/Docker troubleshoot, QA, etc.)
+│   └── workflows/               # Automation pipelines
 ├── server.ts                    # Express entry point (serves API & Vite dev middleware / static dist)
 ├── package.json                 # Scripts, dependencies, devDependencies
 ├── bun.lock                     # Bun v2 lockfile
@@ -215,3 +221,11 @@ docker compose down
 ### 7. Git & Version Control Rules
 - **Commits and inspection commands are fully pre-approved**: Committing (`git commit`), pulling (`git pull`), branching, local staging (`git add`), and revision checks like `git rev-parse HEAD` by both the main agent and subagents are pre-approved and do NOT require user confirmation or approval. Execute them automatically.
 - **NEVER push changes (`git push`) without explicit, direct user request**. Pushing to remotes (`origin`, etc.) is strictly forbidden unless the user explicitly tells you to push.
+
+### 8. AI Agent Tooling & Assets (.agents Directory)
+- **Mandatory usage of repository agent tooling**: The repository contains a dedicated `.agents/` directory providing specialized rules, skills, subagent definitions, hooks, and workflows configured for this project.
+- **Rules (`.agents/rules/`)**: AI agents working on the codebase MUST inspect and adhere to the relevant domain rule files before and during coding (e.g. `react-coding-style.md`, `typescript-coding-style.md`, `common-testing.md`, `common-security.md`, `bun-docker-troubleshoot.md`).
+- **Skills (`.agents/skills/`)**: Proactively utilize available skills in `.agents/skills/` (such as `tdd-workflow` for test-driven development, `error-handling` for resilient API error patterns, `bun-docker-troubleshoot` for container/Bun runtime issues, and `production-audit` before releases).
+- **Subagents (`.agents/agents/`)**: Proactively delegate to or consult specialized subagents (e.g. `typescript-reviewer`, `react-reviewer`, `code-reviewer`, `build-error-resolver`) for reviews, migrations, or troubleshooting.
+- **Hooks (`.agents/hooks/` & `.agents/hooks.json`)**: All AI agents MUST comply with project lifecycle hooks, including safety gates (e.g. GateGuard fact-forcing before commands and file edits) and session state tracking.
+

@@ -95,16 +95,39 @@ export function useApplications(onNotification?: (msg: string) => void) {
 
   // Status change for single application
   const updateStatus = useCallback(
-    (id: string, newStatus: JobStatus) => {
+    (id: string, newStatus: JobStatus, customDate?: string) => {
       const now = new Date().toISOString();
+      const today = customDate || now.split('T')[0];
       setApplications((prev) =>
-        prev.map((app) =>
-          app.id === id ? { ...app, status: newStatus, lastUpdated: now } : app
-        )
+        prev.map((app) => {
+          if (app.id !== id) return app;
+          const existingTimeline =
+            app.timeline && app.timeline.length > 0
+              ? [...app.timeline]
+              : [
+                  {
+                    id: `tl-init-${app.id}`,
+                    status: app.status || 'Wysłana',
+                    date: app.appliedDate || today,
+                  },
+                ];
+
+          const newTimeline = [
+            ...existingTimeline,
+            {
+              id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              status: newStatus,
+              date: today,
+            },
+          ];
+
+          api.updateApplication(id, { status: newStatus, timeline: newTimeline, lastUpdated: now }).catch((err) => {
+            console.error('Failed to sync status update to server', err);
+          });
+
+          return { ...app, status: newStatus, timeline: newTimeline, lastUpdated: now };
+        })
       );
-      api.updateApplication(id, { status: newStatus, lastUpdated: now }).catch((err) => {
-        console.error('Failed to sync status update to server', err);
-      });
       notify(`Zmieniono status na: ${newStatus}`);
     },
     [notify]
@@ -114,26 +137,74 @@ export function useApplications(onNotification?: (msg: string) => void) {
   const saveApplication = useCallback(
     (data: Partial<JobApplication>, existingId?: string) => {
       const now = new Date().toISOString();
+      const today = now.split('T')[0];
       if (existingId) {
         setApplications((prev) =>
-          prev.map((app) => (app.id === existingId ? ({ ...app, ...data, lastUpdated: now } as JobApplication) : app))
+          prev.map((app) => {
+            if (app.id !== existingId) return app;
+
+            let updatedTimeline = data.timeline ?? app.timeline;
+            if (!data.timeline && data.status && data.status !== app.status) {
+              const currentTl =
+                app.timeline && app.timeline.length > 0
+                  ? [...app.timeline]
+                  : [
+                      {
+                        id: `tl-init-${app.id}`,
+                        status: app.status,
+                        date: app.appliedDate || today,
+                      },
+                    ];
+              updatedTimeline = [
+                ...currentTl,
+                {
+                  id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  status: data.status,
+                  date: today,
+                },
+              ];
+            }
+
+            const updatedApp = {
+              ...app,
+              ...data,
+              timeline: updatedTimeline,
+              lastUpdated: now,
+            } as JobApplication;
+
+            api
+              .updateApplication(existingId, { ...data, timeline: updatedTimeline, lastUpdated: now })
+              .catch((err) => {
+                console.error('Failed to sync application update to server', err);
+              });
+
+            return updatedApp;
+          })
         );
-        api.updateApplication(existingId, { ...data, lastUpdated: now }).catch((err) => {
-          console.error('Failed to sync application update to server', err);
-        });
         notify('Zaktualizowano aplikację.');
       } else {
+        const newAppDate = data.appliedDate || today;
         const newApp: JobApplication = {
           id: `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
           role: data.role || 'Stanowisko',
           company: data.company || 'Firma',
           portal: data.portal || 'LinkedIn',
           url: data.url || '',
-          appliedDate: data.appliedDate || now.split('T')[0],
+          appliedDate: newAppDate,
           status: data.status || 'Wysłana',
           location: data.location,
           salary: data.salary,
           skills: data.skills || [],
+          timeline:
+            data.timeline && data.timeline.length > 0
+              ? data.timeline
+              : [
+                  {
+                    id: `tl-${Date.now()}`,
+                    status: data.status || 'Wysłana',
+                    date: newAppDate,
+                  },
+                ],
           notes: data.notes,
           lastUpdated: now,
         };
@@ -186,6 +257,7 @@ export function useApplications(onNotification?: (msg: string) => void) {
       }>
     ) => {
       const now = new Date().toISOString();
+      const today = now.split('T')[0];
       setApplications((prev) =>
         prev.map((app) => {
           const update = updates.find((u) => u.appId === app.id);
@@ -193,17 +265,43 @@ export function useApplications(onNotification?: (msg: string) => void) {
           const updatedNotes = app.notes
             ? `${app.notes}\n${update.noteAddition}`
             : update.noteAddition;
+
+          const existingTimeline =
+            app.timeline && app.timeline.length > 0
+              ? [...app.timeline]
+              : [
+                  {
+                    id: `tl-init-${app.id}`,
+                    status: app.status || 'Wysłana',
+                    date: app.appliedDate || today,
+                  },
+                ];
+
+          const updatedTimeline = [
+            ...existingTimeline,
+            {
+              id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              status: update.newStatus,
+              date: update.meetingDate || today,
+              notes: update.noteAddition || undefined,
+            },
+          ];
+
           const updated = {
             ...app,
             status: update.newStatus,
+            timeline: updatedTimeline,
             notes: updatedNotes,
             lastUpdated: now,
           };
-          api.updateApplication(app.id, {
-            status: update.newStatus,
-            notes: updatedNotes,
-            lastUpdated: now,
-          }).catch((err) => console.error('Failed to sync inbox update', err));
+          api
+            .updateApplication(app.id, {
+              status: update.newStatus,
+              timeline: updatedTimeline,
+              notes: updatedNotes,
+              lastUpdated: now,
+            })
+            .catch((err) => console.error('Failed to sync inbox update', err));
           return updated;
         })
       );
@@ -215,17 +313,28 @@ export function useApplications(onNotification?: (msg: string) => void) {
   const addNewDiscoveredApp = useCallback(
     (newApp: Partial<JobApplication>) => {
       const now = new Date().toISOString();
+      const today = now.split('T')[0];
+      const createdStatus = newApp.status || 'Weryfikacja CV';
+      const createdDate = newApp.appliedDate || today;
+
       const created: JobApplication = {
         id: `job-email-${Date.now()}`,
         role: newApp.role || 'Stanowisko',
         company: newApp.company || 'Nowa firma',
         portal: newApp.portal || 'E-mail',
         url: newApp.url || '',
-        appliedDate: newApp.appliedDate || now.split('T')[0],
-        status: newApp.status || 'Weryfikacja CV',
+        appliedDate: createdDate,
+        status: createdStatus,
         location: newApp.location || 'Polska / Remote',
         salary: newApp.salary || '',
         skills: newApp.skills || [],
+        timeline: [
+          {
+            id: `tl-${Date.now()}`,
+            status: createdStatus,
+            date: createdDate,
+          },
+        ],
         notes: newApp.notes || 'Wykryto automatycznie z korespondencji e-mail.',
         lastUpdated: now,
       };
@@ -251,18 +360,42 @@ export function useApplications(onNotification?: (msg: string) => void) {
       if (selectedIds.length === 0) return;
       const count = selectedIds.length;
       const now = new Date().toISOString();
+      const today = now.split('T')[0];
+
       setApplications((prev) =>
-        prev.map((app) =>
-          selectedIds.includes(app.id)
-            ? { ...app, status: newStatus, lastUpdated: now }
-            : app
-        )
+        prev.map((app) => {
+          if (!selectedIds.includes(app.id)) return app;
+          const existingTimeline =
+            app.timeline && app.timeline.length > 0
+              ? [...app.timeline]
+              : [
+                  {
+                    id: `tl-init-${app.id}`,
+                    status: app.status || 'Wysłana',
+                    date: app.appliedDate || today,
+                  },
+                ];
+
+          const updatedTimeline = [
+            ...existingTimeline,
+            {
+              id: `tl-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              status: newStatus,
+              date: today,
+            },
+          ];
+
+          api
+            .updateApplication(app.id, {
+              status: newStatus,
+              timeline: updatedTimeline,
+              lastUpdated: now,
+            })
+            .catch((err) => console.error(`Failed to update status for ${app.id}`, err));
+
+          return { ...app, status: newStatus, timeline: updatedTimeline, lastUpdated: now };
+        })
       );
-      selectedIds.forEach((id) => {
-        api.updateApplication(id, { status: newStatus, lastUpdated: now }).catch((err) =>
-          console.error(`Failed to update status for ${id}`, err)
-        );
-      });
       notify(`Zmieniono status dla ${count} aplikacji na: ${newStatus}`);
     },
     [notify]

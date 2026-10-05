@@ -1,4 +1,5 @@
 import { JobApplication } from '../types';
+import { getLatestStatusDate } from '../utils/statusConfig';
 
 /**
  * Generates and downloads a CSV file containing job application records.
@@ -13,6 +14,8 @@ export function exportApplicationsToCSV(applications: JobApplication[], filename
     'Portal',
     'Data wyslania CV',
     'Status',
+    'Data etapu',
+    'Historia etapow',
     'Lokalizacja',
     'Widelki',
     'Technologie',
@@ -26,6 +29,8 @@ export function exportApplicationsToCSV(applications: JobApplication[], filename
     `"${(item.portal || '').replace(/"/g, '""')}"`,
     `"${item.appliedDate || ''}"`,
     `"${item.status || ''}"`,
+    `"${getLatestStatusDate(item) || item.appliedDate || ''}"`,
+    `"${(item.timeline || []).map((t) => `${t.status}: ${t.date}${t.notes ? ` (${t.notes})` : ''}`).join(' | ').replace(/"/g, '""')}"`,
     `"${(item.location || '').replace(/"/g, '""')}"`,
     `"${(item.salary || '').replace(/"/g, '""')}"`,
     `"${(item.skills || []).join(', ').replace(/"/g, '""')}"`,

@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { JobApplication, JobStatus } from '../../src/types';
+import { JobApplication, JobStatus, ApplicationTimelineEntry } from '../../src/types';
 
 export const prisma = new PrismaClient();
 
@@ -24,6 +24,7 @@ function mapToJobApplication(record: {
   location: string | null;
   salary: string | null;
   skills: string | null;
+  timeline?: string | null;
   notes: string | null;
   lastUpdated: string | null;
 }): JobApplication {
@@ -38,6 +39,7 @@ function mapToJobApplication(record: {
     location: record.location || undefined,
     salary: record.salary || undefined,
     skills: safeJsonParse<string[]>(record.skills, []),
+    timeline: safeJsonParse<ApplicationTimelineEntry[]>(record.timeline, []),
     notes: record.notes || undefined,
     lastUpdated: record.lastUpdated || undefined,
   };
@@ -61,6 +63,7 @@ export const dbService = {
 
   async saveApplication(app: JobApplication): Promise<JobApplication> {
     const skillsJson = app.skills ? JSON.stringify(app.skills) : '[]';
+    const timelineJson = app.timeline ? JSON.stringify(app.timeline) : '[]';
     const now = new Date().toISOString();
 
     const record = await prisma.application.upsert({
@@ -76,6 +79,7 @@ export const dbService = {
         location: app.location || null,
         salary: app.salary || null,
         skills: skillsJson,
+        timeline: timelineJson,
         notes: app.notes || null,
         lastUpdated: app.lastUpdated || now,
       },
@@ -89,6 +93,7 @@ export const dbService = {
         location: app.location || null,
         salary: app.salary || null,
         skills: skillsJson,
+        timeline: timelineJson,
         notes: app.notes || null,
         lastUpdated: app.lastUpdated || now,
       },
@@ -142,12 +147,20 @@ export const dbService = {
           "location" TEXT,
           "salary" TEXT,
           "skills" TEXT,
+          "timeline" TEXT,
           "notes" TEXT,
           "lastUpdated" TEXT,
           "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
           "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);
+
+      // Attempt to add column for existing databases
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Application" ADD COLUMN "timeline" TEXT;`);
+      } catch {
+        // Column already exists or table freshly created
+      }
 
       console.log('Database connected and schema verified (SQLite)');
     } catch (err) {
