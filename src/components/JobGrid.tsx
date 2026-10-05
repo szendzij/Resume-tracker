@@ -3,19 +3,16 @@ import { JobApplication, JobStatus } from '../types';
 import {
   ALL_STATUSES,
   formatPolishDate,
-  getPortalBadgeStyle,
   getRelativeDays,
   STATUS_CONFIG,
   getLatestStatusDate,
 } from '../utils/statusConfig';
+import { PortalBadge, JobActionButtons } from './common';
 import {
   ExternalLink,
-  Edit2,
-  Trash2,
   MapPin,
   DollarSign,
   Calendar,
-  Sparkles,
   Building2,
 } from 'lucide-react';
 
@@ -52,7 +49,6 @@ export const JobGrid: React.FC<JobGridProps> = ({
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
       {applications.map((app) => {
         const isSelected = selectedIds.includes(app.id);
-        const portalStyle = getPortalBadgeStyle(app.portal);
         const statusMeta = STATUS_CONFIG[app.status] || STATUS_CONFIG['Wysłana'];
         const relativeTime = getRelativeDays(app.appliedDate);
 
@@ -77,11 +73,7 @@ export const JobGrid: React.FC<JobGridProps> = ({
                     onChange={() => onToggleSelect(app.id)}
                     className="w-4 h-4 text-blue-600 rounded border-slate-300 dark:border-slate-600 dark:bg-slate-700 focus:ring-blue-500 cursor-pointer"
                   />
-                  <span
-                    className={`px-2 py-0.5 rounded-md text-[11px] font-medium border ${portalStyle.bg} ${portalStyle.text} ${portalStyle.border}`}
-                  >
-                    {app.portal}
-                  </span>
+                  <PortalBadge portal={app.portal} />
                 </div>
 
                 <div className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500 font-mono">
@@ -190,31 +182,13 @@ export const JobGrid: React.FC<JobGridProps> = ({
                 })()}
               </div>
 
-              <div className="flex items-center gap-1">
-                {app.url && (
-                  <button
-                    onClick={() => onReAnalyze(app)}
-                    title="Analizuj ponownie przez AI Gemini"
-                    className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                  </button>
-                )}
-                <button
-                  onClick={() => onEdit(app)}
-                  title="Edytuj ofertę"
-                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                >
-                  <Edit2 className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => onDelete(app)}
-                  title="Usuń ofertę"
-                  className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+              <JobActionButtons
+                app={app}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onReAnalyze={onReAnalyze}
+                showExternalLink={false}
+              />
             </div>
           </div>
         );

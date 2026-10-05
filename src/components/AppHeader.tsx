@@ -4,7 +4,9 @@ import {
   Plus,
   ListPlus,
   Settings,
+  RefreshCw,
 } from 'lucide-react';
+import { SyncStatus } from '../hooks/useApplications';
 
 interface AppHeaderProps {
   applicationsCount: number;
@@ -12,6 +14,7 @@ interface AppHeaderProps {
   onOpenSettings: (tab?: 'theme' | 'data' | 'email' | 'gemini') => void;
   onOpenAddModal: () => void;
   onOpenBatchAdd: () => void;
+  syncStatus?: SyncStatus;
 }
 
 export const AppHeader: React.FC<AppHeaderProps> = ({
@@ -20,6 +23,7 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
   onOpenSettings,
   onOpenAddModal,
   onOpenBatchAdd,
+  syncStatus,
 }) => {
   return (
     <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 sticky top-0 z-30">
@@ -37,6 +41,57 @@ export const AppHeader: React.FC<AppHeaderProps> = ({
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300">
                 AI Powered
               </span>
+
+              {/* Wskaźnik stanu synchronizacji */}
+              {syncStatus && (
+                <div
+                  id="sync-status-indicator"
+                  data-status={syncStatus}
+                  className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                    syncStatus === 'syncing'
+                      ? 'bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800'
+                      : syncStatus === 'idle'
+                      ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                      : syncStatus === 'offline'
+                      ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                      : 'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800'
+                  }`}
+                  title={
+                    syncStatus === 'syncing'
+                      ? 'Synchronizowanie z bazą...'
+                      : syncStatus === 'idle'
+                      ? 'Zsynchronizowano z bazą'
+                      : syncStatus === 'offline'
+                      ? 'Tryb lokalny'
+                      : 'Błąd synchronizacji'
+                  }
+                >
+                  {syncStatus === 'syncing' && (
+                    <>
+                      <RefreshCw className="w-2.5 h-2.5 text-blue-600 dark:text-blue-400 animate-spin" />
+                      <span className="text-[10px] font-semibold">Synchronizowanie...</span>
+                    </>
+                  )}
+                  {syncStatus === 'idle' && (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                      <span className="text-[10px] font-semibold">Zsynchronizowano z bazą</span>
+                    </>
+                  )}
+                  {syncStatus === 'offline' && (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                      <span className="text-[10px] font-semibold">Tryb lokalny</span>
+                    </>
+                  )}
+                  {syncStatus === 'error' && (
+                    <>
+                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500 inline-block" />
+                      <span className="text-[10px] font-semibold">Błąd synchronizacji</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
               Inteligentne śledzenie aplikacji rekrutacyjnych i ofert pracy

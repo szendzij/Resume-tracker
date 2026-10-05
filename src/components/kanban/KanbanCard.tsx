@@ -1,13 +1,11 @@
 import React, { useState } from 'react';
 import { JobApplication, JobStatus } from '../../types';
-import { STATUS_CONFIG, getPortalBadgeStyle, ALL_STATUSES, getLatestStatusDate } from '../../utils/statusConfig';
+import { ALL_STATUSES, getLatestStatusDate } from '../../utils/statusConfig';
+import { StatusBadge, PortalBadge, JobActionButtons } from '../common';
 import {
   Building2,
   Calendar,
   ExternalLink,
-  Edit2,
-  Trash2,
-  Sparkles,
   MapPin,
   ChevronDown,
 } from 'lucide-react';
@@ -32,8 +30,6 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
   onReAnalyzeWithAi,
 }) => {
   const [showStatusPicker, setShowStatusPicker] = useState(false);
-  const statusCfg = STATUS_CONFIG[app.status];
-  const portalBadge = getPortalBadgeStyle(app.portal);
   const latestStatusDate = getLatestStatusDate(app);
 
   return (
@@ -55,41 +51,18 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
               className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-slate-300 dark:border-slate-700 cursor-pointer"
             />
           )}
-          <span
-            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${portalBadge.bg} ${portalBadge.text}`}
-          >
-            {app.portal}
-          </span>
+          <PortalBadge portal={app.portal} className="text-[10px] py-0.5 rounded-full" />
         </div>
 
-        <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-          {onReAnalyzeWithAi && app.url && (
-            <button
-              type="button"
-              onClick={() => onReAnalyzeWithAi(app)}
-              title="Przeanalizuj ofertę przez AI"
-              className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded cursor-pointer"
-            >
-              <Sparkles className="w-3 h-3" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={() => onEdit(app)}
-            title="Edytuj ofertę"
-            className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded cursor-pointer"
-          >
-            <Edit2 className="w-3 h-3" />
-          </button>
-          <button
-            type="button"
-            onClick={() => onDelete(app.id, app.company)}
-            title="Usuń ofertę"
-            className="p-1 text-slate-400 hover:text-rose-600 rounded cursor-pointer"
-          >
-            <Trash2 className="w-3 h-3" />
-          </button>
-        </div>
+        <JobActionButtons
+          app={app}
+          onEdit={onEdit}
+          onDelete={() => onDelete(app.id, app.company)}
+          onReAnalyze={onReAnalyzeWithAi}
+          showExternalLink={false}
+          size="sm"
+          className="opacity-80 group-hover:opacity-100 transition-opacity"
+        />
       </div>
 
       {/* Role Title */}
@@ -155,14 +128,13 @@ export const KanbanCard: React.FC<KanbanCardProps> = ({
         </div>
 
         <div className="relative">
-          <button
-            type="button"
+          <StatusBadge
+            status={app.status}
             onClick={() => setShowStatusPicker(!showStatusPicker)}
-            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 cursor-pointer transition-colors ${statusCfg.badgeClass}`}
+            className="text-[10px] py-0.5"
           >
-            <span>{app.status}</span>
-            <ChevronDown className="w-2.5 h-2.5 opacity-70" />
-          </button>
+            <ChevronDown className="w-2.5 h-2.5 opacity-70 ml-0.5" />
+          </StatusBadge>
 
           {/* Quick status dropdown */}
           {showStatusPicker && (
