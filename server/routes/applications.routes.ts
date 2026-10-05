@@ -1,6 +1,15 @@
+import crypto from 'crypto';
 import { Router, Request, Response } from 'express';
 import { dbService } from '../services/db.service';
-import { JobApplication } from '../../src/types';
+import { JobApplication } from '../../shared/types';
+import { validateBody } from '../middleware/validate';
+import {
+  createApplicationSchema,
+  updateApplicationSchema,
+  batchApplicationsSchema,
+  batchUpdateApplicationsSchema,
+  bulkDeleteApplicationsSchema,
+} from '../schemas/application.schema';
 
 export const applicationsRouter = Router();
 
@@ -10,7 +19,8 @@ applicationsRouter.get('/', async (_req: Request, res: Response) => {
     const apps = await dbService.getAllApplications();
     res.json(apps);
   } catch (err: any) {
-    res.status(500).json({ error: 'Nie udało się pobrać aplikacji z bazy danych', details: err.message });
+    console.error('Error fetching applications:', err);
+    res.status(500).json({ error: 'Nie udało się pobrać aplikacji z bazy danych' });
   }
 });
 
@@ -24,22 +34,19 @@ applicationsRouter.get('/:id', async (req: Request, res: Response) => {
     }
     res.json(app);
   } catch (err: any) {
-    res.status(500).json({ error: 'Błąd podczas pobierania aplikacji', details: err.message });
+    console.error(`Error fetching application ${req.params.id}:`, err);
+    res.status(500).json({ error: 'Błąd podczas pobierania aplikacji' });
   }
 });
 
 // POST /api/applications - Create or update single application
-applicationsRouter.post('/', async (req: Request, res: Response) => {
+applicationsRouter.post('/', validateBody(createApplicationSchema), async (req: Request, res: Response) => {
   try {
     const data = req.body as JobApplication;
-    if (!data.company || !data.role) {
-      res.status(400).json({ error: 'Pola company i role są wymagane' });
-      return;
-    }
 
     const applicationToSave: JobApplication = {
       ...data,
-      id: data.id || `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: data.id || `job-${crypto.randomUUID()}`,
       appliedDate: data.appliedDate || new Date().toISOString().split('T')[0],
       status: data.status || 'Wysłana',
       lastUpdated: new Date().toISOString(),
@@ -48,28 +55,37 @@ applicationsRouter.post('/', async (req: Request, res: Response) => {
     const saved = await dbService.saveApplication(applicationToSave);
     res.status(201).json(saved);
   } catch (err: any) {
-    res.status(500).json({ error: 'Nie udało się zapisać aplikacji', details: err.message });
+    console.error('Error saving application:', err);
+    res.status(500).json({ error: 'Nie udało się zapisać aplikacji' });
   }
 });
 
 // POST /api/applications/batch - Batch save applications
-applicationsRouter.post('/batch', async (req: Request, res: Response) => {
+applicationsRouter.post('/batch', validateBody(batchApplicationsSchema), async (req: Request, res: Response) => {
   try {
     const { applications } = req.body;
-    if (!Array.isArray(applications)) {
-      res.status(400).json({ error: 'Tablica applications jest wymagana' });
-      return;
-    }
-
     const result = await dbService.saveApplicationsBatch(applications);
     res.status(201).json({ count: result.count, success: true });
   } catch (err: any) {
-    res.status(500).json({ error: 'Błąd podczas masowego zapisu aplikacji', details: err.message });
+    console.error('Error batch saving applications:', err);
+    res.status(500).json({ error: 'Błąd podczas masowego zapisu aplikacji' });
+  }
+});
+
+// PUT /api/applications/batch - Batch update applications
+applicationsRouter.put('/batch', validateBody(batchUpdateApplicationsSchema), async (req: Request, res: Response) => {
+  try {
+    const updates = Array.isArray(req.body) ? req.body : (req.body as any).updates;
+    const count = await dbService.updateApplicationsBatch(updates);
+    res.json({ count, success: true });
+  } catch (err: any) {
+    console.error('Error batch updating applications:', err);
+    res.status(500).json({ error: 'Błąd podczas masowej aktualizacji aplikacji' });
   }
 });
 
 // PUT /api/applications/:id - Update application
-applicationsRouter.put('/:id', async (req: Request, res: Response) => {
+applicationsRouter.put('/:id', validateBody(updateApplicationSchema), async (req: Request, res: Response) => {
   try {
     const existing = await dbService.getApplicationById(req.params.id);
     if (!existing) {
@@ -87,7 +103,8 @@ applicationsRouter.put('/:id', async (req: Request, res: Response) => {
     const saved = await dbService.saveApplication(updatedApp);
     res.json(saved);
   } catch (err: any) {
-    res.status(500).json({ error: 'Błąd podczas aktualizacji aplikacji', details: err.message });
+    console.error(`Error updating application ${req.params.id}:`, err);
+    res.status(500).json({ error: 'Błąd podczas aktualizacji aplikacji' });
   }
 });
 
@@ -101,22 +118,19 @@ applicationsRouter.delete('/:id', async (req: Request, res: Response) => {
     }
     res.json({ success: true, id: req.params.id });
   } catch (err: any) {
-    res.status(500).json({ error: 'Błąd podczas usuwania aplikacji', details: err.message });
+    console.error(`Error deleting application ${req.params.id}:`, err);
+    res.status(500).json({ error: 'Błąd podczas usuwania aplikacji' });
   }
 });
 
 // DELETE /api/applications - Bulk delete
-applicationsRouter.delete('/', async (req: Request, res: Response) => {
+applicationsRouter.delete('/', validateBody(bulkDeleteApplicationsSchema), async (req: Request, res: Response) => {
   try {
     const { ids } = req.body;
-    if (!Array.isArray(ids)) {
-      res.status(400).json({ error: 'Tablica ids jest wymagana' });
-      return;
-    }
-
     const count = await dbService.deleteApplicationsBatch(ids);
     res.json({ success: true, count });
   } catch (err: any) {
-    res.status(500).json({ error: 'Błąd podczas usuwania wielu aplikacji', details: err.message });
+    console.error('Error bulk deleting applications:', err);
+    res.status(500).json({ error: 'Błąd podczas usuwania wielu aplikacji' });
   }
 });

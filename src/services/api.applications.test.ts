@@ -77,4 +77,54 @@ describe('api.applications', () => {
     expect(mockFetch).toHaveBeenCalledWith('/api/applications/app-123', expect.objectContaining({ method: 'DELETE' }));
     expect(result.success).toBe(true);
   });
+
+  it('batchUpdateApplications calls PUT /api/applications/batch', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ count: 2, success: true }),
+    });
+
+    const updates = [
+      { id: 'app-1', status: 'Rozmowa HR' as const },
+      { id: 'app-2', status: 'Odrzucona' as const },
+    ];
+
+    const result = await api.batchUpdateApplications(updates);
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/applications/batch',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify(updates),
+      })
+    );
+    expect(result.count).toBe(2);
+    expect(result.success).toBe(true);
+  });
+
+  it('parses JSON error response and includes errJson.error in thrown Error', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      statusText: 'Internal Server Error',
+      json: async () => ({ error: 'Nieprawidłowe dane wejściowe w batch' }),
+    });
+
+    await expect(api.batchUpdateApplications([{ id: 'bad-id' }])).rejects.toThrow(
+      'Błąd masowej aktualizacji aplikacji: Nieprawidłowe dane wejściowe w batch'
+    );
+  });
+
+  it('falls back to res.statusText when error response is not valid JSON', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      statusText: 'Service Unavailable',
+      json: async () => {
+        throw new Error('Not JSON');
+      },
+    });
+
+    await expect(api.getApplications()).rejects.toThrow(
+      'Błąd pobierania aplikacji: Service Unavailable'
+    );
+  });
 });
+

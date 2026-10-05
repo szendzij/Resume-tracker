@@ -3,17 +3,14 @@ import { JobApplication, JobStatus, SortOption } from '../types';
 import {
   ALL_STATUSES,
   formatPolishDate,
-  getPortalBadgeStyle,
   getRelativeDays,
   STATUS_CONFIG,
 } from '../utils/statusConfig';
+import { PortalBadge, JobActionButtons } from './common';
 import {
   ExternalLink,
-  Edit2,
-  Trash2,
   MapPin,
   DollarSign,
-  Sparkles,
   Building2,
   ArrowUp,
   ArrowDown,
@@ -172,7 +169,6 @@ export const JobTable: React.FC<JobTableProps> = ({
             {applications.map((app) => {
               const isSelected = selectedIds.includes(app.id);
               const statusMeta = STATUS_CONFIG[app.status] || STATUS_CONFIG['Wysłana'];
-              const portalStyle = getPortalBadgeStyle(app.portal);
               const relativeTime = getRelativeDays(app.appliedDate);
 
               return (
@@ -222,11 +218,7 @@ export const JobTable: React.FC<JobTableProps> = ({
 
                   {/* Portal */}
                   <td className="py-3 px-4">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-md text-[11px] font-medium border ${portalStyle.bg} ${portalStyle.text} ${portalStyle.border}`}
-                    >
-                      {app.portal}
-                    </span>
+                    <PortalBadge portal={app.portal} />
                   </td>
 
                   {/* Applied Date */}
@@ -301,33 +293,15 @@ export const JobTable: React.FC<JobTableProps> = ({
 
                   {/* Actions */}
                   <td className="py-3 px-4 text-right whitespace-nowrap">
-                    <div className="flex items-center justify-end gap-1">
-                      {app.url && (
-                        <button
-                          id={`reanalyze-btn-${app.id}`}
-                          onClick={() => onReAnalyze(app)}
-                          title="Odśwież dane oferty przez AI Gemini"
-                          className="p-1.5 text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                        >
-                          <Sparkles className="w-3.5 h-3.5" />
-                        </button>
-                      )}
-                      <button
-                        id={`edit-btn-${app.id}`}
-                        onClick={() => onEdit(app)}
-                        title="Edytuj"
-                        className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        id={`delete-btn-${app.id}`}
-                        onClick={() => onDelete(app)}
-                        title="Usuń"
-                        className="p-1.5 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 rounded-lg hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="flex items-center justify-end">
+                      <JobActionButtons
+                        app={app}
+                        onEdit={onEdit}
+                        onDelete={onDelete}
+                        onReAnalyze={onReAnalyze}
+                        showExternalLink={false}
+                        size="sm"
+                      />
                     </div>
                   </td>
                 </tr>

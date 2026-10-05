@@ -33,6 +33,7 @@ export const App: React.FC = () => {
   // Applications data hook
   const {
     applications,
+    syncStatus,
     updateStatus,
     saveApplication,
     deleteApplication,
@@ -136,6 +137,7 @@ export const App: React.FC = () => {
         onOpenSettings={handleOpenSettingsModal}
         onOpenAddModal={() => handleOpenAddModal()}
         onOpenBatchAdd={() => setIsBatchModalOpen(true)}
+        syncStatus={syncStatus}
       />
 
       {/* Main Content Area */}

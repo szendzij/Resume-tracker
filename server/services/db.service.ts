@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client';
-import { JobApplication, JobStatus, ApplicationTimelineEntry } from '../../src/types';
+import { JobApplication, JobStatus, ApplicationTimelineEntry } from '../../shared/types';
 
 export const prisma = new PrismaClient();
 
@@ -45,6 +45,54 @@ function mapToJobApplication(record: {
   };
 }
 
+function buildUpsertArgs(app: JobApplication) {
+  const skillsJson = app.skills ? JSON.stringify(app.skills) : '[]';
+  const timelineJson = app.timeline ? JSON.stringify(app.timeline) : '[]';
+  const now = new Date().toISOString();
+
+  return {
+    where: { id: app.id },
+    create: {
+      id: app.id,
+      role: app.role || 'Stanowisko',
+      company: app.company || 'Firma',
+      portal: app.portal || 'LinkedIn',
+      url: app.url || '',
+      appliedDate: app.appliedDate || now.split('T')[0],
+      status: app.status || 'Wysłana',
+      location: app.location || null,
+      salary: app.salary || null,
+      skills: skillsJson,
+      timeline: timelineJson,
+      notes: app.notes || null,
+      lastUpdated: app.lastUpdated || now,
+    },
+    update: {
+      role: app.role,
+      company: app.company,
+      portal: app.portal,
+      url: app.url,
+      appliedDate: app.appliedDate,
+      status: app.status,
+      location: app.location || null,
+      salary: app.salary || null,
+      skills: skillsJson,
+      timeline: timelineJson,
+      notes: app.notes || null,
+      lastUpdated: app.lastUpdated || now,
+    },
+  };
+}
+
+function isRetryableDbError(err: any): boolean {
+  if (!err) return false;
+  if (err.code === 'P2034' || err.code === 'SQLITE_BUSY') return true;
+  if (typeof err.message === 'string' && (err.message.includes('SQLITE_BUSY') || err.message.includes('P2034'))) {
+    return true;
+  }
+  return false;
+}
+
 export const dbService = {
   async getAllApplications(): Promise<JobApplication[]> {
     const records = await prisma.application.findMany({
@@ -62,53 +110,35 @@ export const dbService = {
   },
 
   async saveApplication(app: JobApplication): Promise<JobApplication> {
-    const skillsJson = app.skills ? JSON.stringify(app.skills) : '[]';
-    const timelineJson = app.timeline ? JSON.stringify(app.timeline) : '[]';
-    const now = new Date().toISOString();
-
-    const record = await prisma.application.upsert({
-      where: { id: app.id },
-      create: {
-        id: app.id,
-        role: app.role || 'Stanowisko',
-        company: app.company || 'Firma',
-        portal: app.portal || 'LinkedIn',
-        url: app.url || '',
-        appliedDate: app.appliedDate || now.split('T')[0],
-        status: app.status || 'Wysłana',
-        location: app.location || null,
-        salary: app.salary || null,
-        skills: skillsJson,
-        timeline: timelineJson,
-        notes: app.notes || null,
-        lastUpdated: app.lastUpdated || now,
-      },
-      update: {
-        role: app.role,
-        company: app.company,
-        portal: app.portal,
-        url: app.url,
-        appliedDate: app.appliedDate,
-        status: app.status,
-        location: app.location || null,
-        salary: app.salary || null,
-        skills: skillsJson,
-        timeline: timelineJson,
-        notes: app.notes || null,
-        lastUpdated: app.lastUpdated || now,
-      },
-    });
-
+    const record = await prisma.application.upsert(buildUpsertArgs(app));
     return mapToJobApplication(record);
   },
 
   async saveApplicationsBatch(apps: JobApplication[]): Promise<{ count: number }> {
-    let savedCount = 0;
-    for (const app of apps) {
-      await this.saveApplication(app);
-      savedCount++;
+    if (!apps || apps.length === 0) {
+      return { count: 0 };
     }
-    return { count: savedCount };
+
+    const operations = apps.map((app) => prisma.application.upsert(buildUpsertArgs(app)));
+    const maxAttempts = 3;
+    let attempt = 0;
+
+    while (attempt < maxAttempts) {
+      attempt++;
+      try {
+        const results = await prisma.$transaction(operations);
+        return { count: results.length };
+      } catch (err: any) {
+        if (isRetryableDbError(err) && attempt < maxAttempts) {
+          const backoffMs = attempt * 50;
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    return { count: 0 };
   },
 
   async deleteApplication(id: string): Promise<boolean> {
@@ -117,7 +147,8 @@ export const dbService = {
         where: { id },
       });
       return true;
-    } catch {
+    } catch (err) {
+      console.error(`Error deleting application ${id}:`, err);
       return false;
     }
   },
@@ -128,6 +159,59 @@ export const dbService = {
     });
     return result.count;
   },
+
+  async updateApplicationsBatch(updates: Array<{ id: string } & Partial<JobApplication>>): Promise<number> {
+    if (!updates || updates.length === 0) {
+      return 0;
+    }
+
+    const operations = updates.map((item) => {
+      const data: any = {
+        lastUpdated: item.lastUpdated || new Date().toISOString(),
+      };
+      if (item.role !== undefined) data.role = item.role;
+      if (item.company !== undefined) data.company = item.company;
+      if (item.portal !== undefined) data.portal = item.portal;
+      if (item.url !== undefined) data.url = item.url;
+      if (item.appliedDate !== undefined) data.appliedDate = item.appliedDate;
+      if (item.status !== undefined) data.status = item.status;
+      if (item.location !== undefined) data.location = item.location;
+      if (item.salary !== undefined) data.salary = item.salary;
+      if (item.skills !== undefined) {
+        data.skills = Array.isArray(item.skills) ? JSON.stringify(item.skills) : item.skills;
+      }
+      if (item.timeline !== undefined) {
+        data.timeline = Array.isArray(item.timeline) ? JSON.stringify(item.timeline) : item.timeline;
+      }
+      if (item.notes !== undefined) data.notes = item.notes;
+
+      return prisma.application.update({
+        where: { id: item.id },
+        data,
+      });
+    });
+
+    const maxAttempts = 3;
+    let attempt = 0;
+
+    while (attempt < maxAttempts) {
+      attempt++;
+      try {
+        const results = await prisma.$transaction(operations);
+        return results.length;
+      } catch (err: any) {
+        if (isRetryableDbError(err) && attempt < maxAttempts) {
+          const backoffMs = attempt * 50;
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    return 0;
+  },
+
 
   async initDatabase(): Promise<void> {
     try {
