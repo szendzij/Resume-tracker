@@ -12,7 +12,7 @@ const DEFAULT_FILTER: FilterState = {
 
 export function useApplicationFilters(applications: JobApplication[]) {
   const [filter, setFilter] = useState<FilterState>(DEFAULT_FILTER);
-  const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'grid'>('table');
+  const [viewMode, setViewMode] = useState<'table' | 'kanban' | 'grid' | 'calendar'>('table');
 
   // Available unique portals
   const availablePortals = useMemo(() => {

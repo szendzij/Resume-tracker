@@ -1,15 +1,15 @@
 import React from 'react';
 import { FilterState, JobApplication } from '../types';
 import { ALL_STATUSES, STATUS_CONFIG } from '../utils/statusConfig';
-import { Search, X, Calendar, SlidersHorizontal, LayoutGrid, Kanban, Table2 } from 'lucide-react';
+import { Search, X, Calendar, CalendarDays, SlidersHorizontal, LayoutGrid, Kanban, Table2 } from 'lucide-react';
 
 interface FilterBarProps {
   filter: FilterState;
   onFilterChange: (newFilter: FilterState) => void;
   applications: JobApplication[];
   availablePortals: string[];
-  viewMode: 'table' | 'kanban' | 'grid';
-  onViewModeChange: (mode: 'table' | 'kanban' | 'grid') => void;
+  viewMode: 'table' | 'kanban' | 'grid' | 'calendar';
+  onViewModeChange: (mode: 'table' | 'kanban' | 'grid' | 'calendar') => void;
 }
 
 export const FilterBar: React.FC<FilterBarProps> = ({
@@ -184,6 +184,19 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             >
               <LayoutGrid className="w-4 h-4" />
               <span className="hidden sm:inline">Karty</span>
+            </button>
+            <button
+              id="view-calendar-btn"
+              onClick={() => onViewModeChange('calendar')}
+              title="Widok kalendarza"
+              className={`p-1.5 rounded-md text-xs font-medium flex items-center gap-1 transition-colors cursor-pointer ${
+                viewMode === 'calendar'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              <CalendarDays className="w-4 h-4" />
+              <span className="hidden sm:inline">Kalendarz</span>
             </button>
           </div>
         </div>

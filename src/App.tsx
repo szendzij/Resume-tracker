@@ -14,6 +14,7 @@ import { BulkActionsBar } from './components/BulkActionsBar';
 import { JobTable } from './components/JobTable';
 import { JobKanban } from './components/JobKanban';
 import { JobGrid } from './components/JobGrid';
+import { JobCalendar } from './components/JobCalendar';
 
 import { JobModal } from './components/JobModal';
 import { BatchAddModal } from './components/BatchAddModal';
@@ -209,6 +210,22 @@ export const App: React.FC = () => {
             onDelete={handleDeleteRequest}
             onStatusChange={updateStatus}
             onReAnalyze={reAnalyzeWithAi}
+          />
+        )}
+
+        {viewMode === 'calendar' && (
+          <JobCalendar
+            applications={filteredApplications}
+            onEdit={handleOpenEditModal}
+            onDelete={handleDeleteRequest}
+            onAddNew={(defaultDate) => {
+              if (defaultDate) {
+                setEditingJob({ appliedDate: defaultDate, status: 'Wysłana' } as JobApplication);
+              } else {
+                setEditingJob(null);
+              }
+              setIsJobModalOpen(true);
+            }}
           />
         )}
       </main>
