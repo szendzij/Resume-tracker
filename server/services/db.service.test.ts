@@ -214,4 +214,75 @@ describe('dbService', () => {
     consoleErrorSpy.mockRestore();
     deleteSpy.mockRestore();
   });
+
+  describe('updateApplicationsBatch', () => {
+    it('updates multiple applications in an atomic transaction', async () => {
+      const app1: JobApplication = {
+        id: 'test-batch-up-1',
+        role: 'Junior Dev',
+        company: 'BatchUpCorp',
+        portal: 'LinkedIn',
+        url: 'https://example.com/1',
+        appliedDate: '2026-10-01',
+        status: 'Wysłana',
+      };
+      const app2: JobApplication = {
+        id: 'test-batch-up-2',
+        role: 'Mid Dev',
+        company: 'BatchUpCorp',
+        portal: 'NoFluffJobs',
+        url: 'https://example.com/2',
+        appliedDate: '2026-10-01',
+        status: 'Wysłana',
+      };
+
+      await dbService.saveApplicationsBatch([app1, app2]);
+
+      const count = await dbService.updateApplicationsBatch([
+        { id: 'test-batch-up-1', status: 'Rozmowa HR', appliedDate: '2026-10-03' },
+        { id: 'test-batch-up-2', status: 'Odrzucona', notes: 'Brak doświadczenia' },
+      ]);
+
+      expect(count).toBe(2);
+
+      const updated1 = await dbService.getApplicationById('test-batch-up-1');
+      const updated2 = await dbService.getApplicationById('test-batch-up-2');
+
+      expect(updated1?.status).toBe('Rozmowa HR');
+      expect(updated1?.appliedDate).toBe('2026-10-03');
+      expect(updated2?.status).toBe('Odrzucona');
+      expect(updated2?.notes).toBe('Brak doświadczenia');
+    });
+
+    it('returns 0 when updates array is empty', async () => {
+      const count = await dbService.updateApplicationsBatch([]);
+      expect(count).toBe(0);
+    });
+
+    it('rolls back entire transaction if any update fails', async () => {
+      const app: JobApplication = {
+        id: 'test-rollback-up-1',
+        role: 'Dev',
+        company: 'RollbackCorp',
+        portal: 'LinkedIn',
+        url: 'https://example.com/rb',
+        appliedDate: '2026-10-01',
+        status: 'Wysłana',
+      };
+      await dbService.saveApplication(app);
+
+      // Attempt batch update where second id does not exist in SQLite (Prisma update will throw)
+      await expect(
+        dbService.updateApplicationsBatch([
+          { id: 'test-rollback-up-1', status: 'Oferta' },
+          { id: 'non-existent-id-404-error', status: 'Oferta' },
+        ])
+      ).rejects.toThrow();
+
+      // Original app should remain unchanged due to atomic rollback
+      const retrieved = await dbService.getApplicationById('test-rollback-up-1');
+      expect(retrieved?.status).toBe('Wysłana');
+    });
+  });
 });
+

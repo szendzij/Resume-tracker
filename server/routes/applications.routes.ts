@@ -7,6 +7,7 @@ import {
   createApplicationSchema,
   updateApplicationSchema,
   batchApplicationsSchema,
+  batchUpdateApplicationsSchema,
   bulkDeleteApplicationsSchema,
 } from '../schemas/application.schema';
 
@@ -68,6 +69,18 @@ applicationsRouter.post('/batch', validateBody(batchApplicationsSchema), async (
   } catch (err: any) {
     console.error('Error batch saving applications:', err);
     res.status(500).json({ error: 'Błąd podczas masowego zapisu aplikacji' });
+  }
+});
+
+// PUT /api/applications/batch - Batch update applications
+applicationsRouter.put('/batch', validateBody(batchUpdateApplicationsSchema), async (req: Request, res: Response) => {
+  try {
+    const updates = Array.isArray(req.body) ? req.body : (req.body as any).updates;
+    const count = await dbService.updateApplicationsBatch(updates);
+    res.json({ count, success: true });
+  } catch (err: any) {
+    console.error('Error batch updating applications:', err);
+    res.status(500).json({ error: 'Błąd podczas masowej aktualizacji aplikacji' });
   }
 });
 

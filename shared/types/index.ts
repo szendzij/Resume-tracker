@@ -1,13 +1,16 @@
-export type JobStatus =
-  | 'Do zaaplikowania'
-  | 'Wysłana'
-  | 'Weryfikacja CV'
-  | 'Rozmowa HR'
-  | 'Rozmowa techniczna'
-  | 'Zadanie rekrutacyjne'
-  | 'Oferta'
-  | 'Odrzucona'
-  | 'Zrezygnowano';
+export const ALL_STATUSES = [
+  'Do zaaplikowania',
+  'Wysłana',
+  'Weryfikacja CV',
+  'Rozmowa HR',
+  'Rozmowa techniczna',
+  'Zadanie rekrutacyjne',
+  'Oferta',
+  'Odrzucona',
+  'Zrezygnowano',
+] as const;
+
+export type JobStatus = (typeof ALL_STATUSES)[number];
 
 export interface ApplicationTimelineEntry {
   id: string;

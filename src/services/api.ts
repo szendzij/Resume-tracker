@@ -79,7 +79,8 @@ export const api = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      throw new Error(`Błąd API parse-job: ${res.statusText}`);
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd API parse-job: ${errJson?.error || res.statusText}`);
     }
     return res.json();
   },
@@ -92,7 +93,8 @@ export const api = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      throw new Error(`Błąd API batch-parse: ${res.statusText}`);
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd API batch-parse: ${errJson?.error || res.statusText}`);
     }
     return res.json();
   },
@@ -100,20 +102,29 @@ export const api = {
   // Fetch OAuth authorization URLs
   async getOutlookAuthUrl(): Promise<{ url: string; redirectUri: string; isConfigured: boolean }> {
     const res = await fetch('/api/auth/outlook/url');
-    if (!res.ok) throw new Error('Błąd pobierania URL autoryzacji Outlook');
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd pobierania URL autoryzacji Outlook: ${errJson?.error || res.statusText}`);
+    }
     return res.json();
   },
 
   async getGmailAuthUrl(): Promise<{ url: string; redirectUri: string; isConfigured: boolean }> {
     const res = await fetch('/api/auth/gmail/url');
-    if (!res.ok) throw new Error('Błąd pobierania URL autoryzacji Gmail');
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd pobierania URL autoryzacji Gmail: ${errJson?.error || res.statusText}`);
+    }
     return res.json();
   },
 
   // Fetch emails from providers or sample data
   async fetchSampleEmails(): Promise<{ emails: EmailMessage[] }> {
     const res = await fetch('/api/sample-emails');
-    if (!res.ok) throw new Error('Błąd pobierania przykładowych maili');
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd pobierania przykładowych maili: ${errJson?.error || res.statusText}`);
+    }
     return res.json();
   },
 
@@ -126,7 +137,10 @@ export const api = {
       },
       body: JSON.stringify({ token }),
     });
-    if (!res.ok) throw new Error('Błąd pobierania maili z Outlook');
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd pobierania maili z Outlook: ${errJson?.error || res.statusText}`);
+    }
     return res.json();
   },
 
@@ -139,7 +153,10 @@ export const api = {
       },
       body: JSON.stringify({ token }),
     });
-    if (!res.ok) throw new Error('Błąd pobierania maili z Gmail');
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd pobierania maili z Gmail: ${errJson?.error || res.statusText}`);
+    }
     return res.json();
   },
 
@@ -154,7 +171,8 @@ export const api = {
       body: JSON.stringify(payload),
     });
     if (!res.ok) {
-      throw new Error(`Błąd analizy maili: ${res.statusText}`);
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd analizy maili: ${errJson?.error || res.statusText}`);
     }
     return res.json();
   },
@@ -190,7 +208,8 @@ export const api = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) {
-      throw new Error(`Błąd pobierania aplikacji: ${res.statusText}`);
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd pobierania aplikacji: ${errJson?.error || res.statusText}`);
     }
     return res.json();
   },
@@ -202,7 +221,8 @@ export const api = {
       body: JSON.stringify(app),
     });
     if (!res.ok) {
-      throw new Error(`Błąd tworzenia aplikacji: ${res.statusText}`);
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd tworzenia aplikacji: ${errJson?.error || res.statusText}`);
     }
     return res.json();
   },
@@ -214,7 +234,8 @@ export const api = {
       body: JSON.stringify({ applications }),
     });
     if (!res.ok) {
-      throw new Error(`Błąd masowego zapisu aplikacji: ${res.statusText}`);
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd masowego zapisu aplikacji: ${errJson?.error || res.statusText}`);
     }
     return res.json();
   },
@@ -226,7 +247,23 @@ export const api = {
       body: JSON.stringify(updates),
     });
     if (!res.ok) {
-      throw new Error(`Błąd aktualizacji aplikacji: ${res.statusText}`);
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd aktualizacji aplikacji: ${errJson?.error || res.statusText}`);
+    }
+    return res.json();
+  },
+
+  async batchUpdateApplications(
+    updates: Array<{ id: string } & Partial<JobApplication>>
+  ): Promise<{ count: number; success: boolean }> {
+    const res = await fetch('/api/applications/batch', {
+      method: 'PUT',
+      headers: getAuthHeaders(),
+      body: JSON.stringify(updates),
+    });
+    if (!res.ok) {
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd masowej aktualizacji aplikacji: ${errJson?.error || res.statusText}`);
     }
     return res.json();
   },
@@ -237,7 +274,8 @@ export const api = {
       headers: getAuthHeaders(),
     });
     if (!res.ok) {
-      throw new Error(`Błąd usuwania aplikacji: ${res.statusText}`);
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd usuwania aplikacji: ${errJson?.error || res.statusText}`);
     }
     return res.json();
   },
@@ -249,7 +287,8 @@ export const api = {
       body: JSON.stringify({ ids }),
     });
     if (!res.ok) {
-      throw new Error(`Błąd masowego usuwania aplikacji: ${res.statusText}`);
+      const errJson = await res.json().catch(() => null);
+      throw new Error(`Błąd masowego usuwania aplikacji: ${errJson?.error || res.statusText}`);
     }
     return res.json();
   },

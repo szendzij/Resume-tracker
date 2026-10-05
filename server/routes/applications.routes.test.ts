@@ -11,6 +11,7 @@ vi.mock('../services/db.service', () => ({
     getApplicationById: vi.fn(),
     saveApplication: vi.fn(),
     saveApplicationsBatch: vi.fn(),
+    updateApplicationsBatch: vi.fn(),
     deleteApplication: vi.fn(),
     deleteApplicationsBatch: vi.fn(),
   },
@@ -115,6 +116,45 @@ describe('applicationsRouter', () => {
     const data = await res.json();
     expect(data.count).toBe(2);
     expect(data.success).toBe(true);
+  });
+
+  it('PUT /batch updates multiple applications and returns 200', async () => {
+    vi.mocked(dbService.updateApplicationsBatch).mockResolvedValue(2);
+
+    const updates = [
+      { id: 'app-1', status: 'Rozmowa techniczna' },
+      { id: 'app-2', status: 'Odrzucona' },
+    ];
+
+    const res = await fetch(`${baseUrl}/batch`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.count).toBe(2);
+    expect(data.success).toBe(true);
+    expect(dbService.updateApplicationsBatch).toHaveBeenCalledWith(updates);
+  });
+
+  it('PUT /batch supports object payload with { updates: [...] }', async () => {
+    vi.mocked(dbService.updateApplicationsBatch).mockResolvedValue(1);
+
+    const updates = [{ id: 'app-1', status: 'Oferta' }];
+
+    const res = await fetch(`${baseUrl}/batch`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ updates }),
+    });
+
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.count).toBe(1);
+    expect(data.success).toBe(true);
+    expect(dbService.updateApplicationsBatch).toHaveBeenCalledWith(updates);
   });
 
   it('DELETE /:id deletes an application', async () => {
@@ -223,5 +263,67 @@ describe('applicationsRouter', () => {
       const data = await res.json();
       expect(data.error).toBe('Nieprawidłowe dane wejściowe');
     });
+
+    it('PUT /batch rejects update item missing id', async () => {
+      const res = await fetch(`${baseUrl}/batch`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify([{ status: 'Rozmowa HR' }]),
+      });
+
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toBe('Nieprawidłowe dane wejściowe');
+    });
+
+    it('PUT /batch rejects payload where updates is neither array nor object with updates array', async () => {
+      const res = await fetch(`${baseUrl}/batch`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates: 'not-an-array' }),
+      });
+
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toBe('Nieprawidłowe dane wejściowe');
+    });
+
+    it('POST / rejects payload with invalid status not in ALL_STATUSES', async () => {
+      const res = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'Backend Dev',
+          company: 'Acme Corp',
+          status: 'NiepoprawnyStatus123',
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toBe('Nieprawidłowe dane wejściowe');
+    });
+
+    it('POST / rejects timeline entry missing date or with invalid status', async () => {
+      const res = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          role: 'Backend Dev',
+          company: 'Acme Corp',
+          timeline: [
+            {
+              status: 'NieznanyStatus',
+              date: '',
+            },
+          ],
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toBe('Nieprawidłowe dane wejściowe');
+    });
   });
 });
+

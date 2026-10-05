@@ -160,6 +160,59 @@ export const dbService = {
     return result.count;
   },
 
+  async updateApplicationsBatch(updates: Array<{ id: string } & Partial<JobApplication>>): Promise<number> {
+    if (!updates || updates.length === 0) {
+      return 0;
+    }
+
+    const operations = updates.map((item) => {
+      const data: any = {
+        lastUpdated: item.lastUpdated || new Date().toISOString(),
+      };
+      if (item.role !== undefined) data.role = item.role;
+      if (item.company !== undefined) data.company = item.company;
+      if (item.portal !== undefined) data.portal = item.portal;
+      if (item.url !== undefined) data.url = item.url;
+      if (item.appliedDate !== undefined) data.appliedDate = item.appliedDate;
+      if (item.status !== undefined) data.status = item.status;
+      if (item.location !== undefined) data.location = item.location;
+      if (item.salary !== undefined) data.salary = item.salary;
+      if (item.skills !== undefined) {
+        data.skills = Array.isArray(item.skills) ? JSON.stringify(item.skills) : item.skills;
+      }
+      if (item.timeline !== undefined) {
+        data.timeline = Array.isArray(item.timeline) ? JSON.stringify(item.timeline) : item.timeline;
+      }
+      if (item.notes !== undefined) data.notes = item.notes;
+
+      return prisma.application.update({
+        where: { id: item.id },
+        data,
+      });
+    });
+
+    const maxAttempts = 3;
+    let attempt = 0;
+
+    while (attempt < maxAttempts) {
+      attempt++;
+      try {
+        const results = await prisma.$transaction(operations);
+        return results.length;
+      } catch (err: any) {
+        if (isRetryableDbError(err) && attempt < maxAttempts) {
+          const backoffMs = attempt * 50;
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    return 0;
+  },
+
+
   async initDatabase(): Promise<void> {
     try {
       // Connect to SQLite
