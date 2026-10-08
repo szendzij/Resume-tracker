@@ -181,7 +181,7 @@ export const api = {
   async getGeminiStatus(): Promise<{ hasEnvKey: boolean; model: string }> {
     const res = await fetch('/api/gemini/status');
     if (!res.ok) {
-      return { hasEnvKey: false, model: 'gemini-3.8-flash' };
+      return { hasEnvKey: false, model: 'gemini-3.5-flash-lite' };
     }
     return res.json();
   },

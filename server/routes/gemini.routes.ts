@@ -8,7 +8,7 @@ export const geminiRouter = Router();
 geminiRouter.get('/status', (req: Request, res: Response) => {
   res.json({
     hasEnvKey: Boolean(ENV.GEMINI_API_KEY && ENV.GEMINI_API_KEY.trim()),
-    model: 'gemini-3.8-flash',
+    model: ENV.GEMINI_MODEL,
   });
 });
 

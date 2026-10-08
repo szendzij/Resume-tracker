@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { getGemini } from './gemini.service';
+import { ENV } from '../config/env';
 
 export interface EmailAnalysisInput {
   id: string;
@@ -241,7 +242,7 @@ Dla KAŻDEJ wiadomości e-mail (wg indeksu):
    - "confidence": "high", "medium" lub "low"`;
 
     const aiRes = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: ENV.GEMINI_MODEL,
       contents: prompt,
       config: {
         responseMimeType: 'application/json',

@@ -41,7 +41,7 @@ export async function validateGeminiApiKey(apiKey?: string): Promise<{
   if (!key) {
     return {
       valid: false,
-      model: 'gemini-3.8-flash',
+      model: ENV.GEMINI_MODEL,
       error: 'Brak klucza API do przetestowania.',
     };
   }
@@ -57,13 +57,13 @@ export async function validateGeminiApiKey(apiKey?: string): Promise<{
     });
 
     const res = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: ENV.GEMINI_MODEL,
       contents: 'Odpowiedz tylko jednym słowem: "POŁĄCZONO".',
     });
 
     return {
       valid: true,
-      model: 'gemini-3.8-flash',
+      model: ENV.GEMINI_MODEL,
       response: res.text?.trim() || 'POŁĄCZONO',
     };
   } catch (error: any) {
@@ -79,7 +79,7 @@ export async function validateGeminiApiKey(apiKey?: string): Promise<{
 
     return {
       valid: false,
-      model: 'gemini-3.8-flash',
+      model: ENV.GEMINI_MODEL,
       error: cleanMessage,
     };
   }
@@ -122,7 +122,7 @@ Zidentyfikuj i wyodrębnij w języku polskim:
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
+        model: ENV.GEMINI_MODEL,
         contents: prompt,
         config: {
           responseMimeType: 'application/json',
@@ -203,7 +203,7 @@ Lista ofert do przeanalizowania:
 ${promptItems}`;
 
   const aiResponse = await ai.models.generateContent({
-    model: 'gemini-3.8-flash',
+    model: ENV.GEMINI_MODEL,
     contents: prompt,
     config: {
       responseMimeType: 'application/json',

@@ -66,7 +66,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   } | null>(null);
   const [systemKeyInfo, setSystemKeyInfo] = useState<{ hasEnvKey: boolean; model: string }>({
     hasEnvKey: false,
-    model: 'gemini-3.8-flash',
+    model: 'gemini-3.5-flash-lite',
   });
 
   // JSON Import State
@@ -753,7 +753,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
                   Aplikacja wykorzystuje model{' '}
                   <strong className="text-indigo-600 dark:text-indigo-400">
-                    {systemKeyInfo.model || 'gemini-3.8-flash'}
+                    {systemKeyInfo.model || 'gemini-3.5-flash-lite'}
                   </strong>{' '}
                   do analizy linków ofert, automatycznego wyciągania technologii, firm, stanowisk oraz
                   interpretacji statusów z poczty e-mail.
