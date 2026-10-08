@@ -562,5 +562,36 @@ describe('Extension Popup Controller (popup.js)', () => {
       expect(viewForm?.classList.contains('hidden')).toBe(false);
       expect(viewSettings?.classList.contains('hidden')).toBe(true);
     });
+
+    it('updates loading checklist step states and handles manual entry fallback on error', async () => {
+      // First attempt fails to check error and fallback actions
+      globalThis.fetch = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/jobs/parse-job')) {
+          return Promise.reject(new Error('AI Service Unavailable'));
+        }
+        return Promise.resolve({
+          ok: true,
+          json: async () => [],
+        });
+      });
+
+      await initPopup();
+
+      const stepAi = document.getElementById('step-ai');
+      expect(stepAi?.classList.contains('step-error')).toBe(true);
+
+      const errorBox = document.getElementById('loading-error-actions');
+      expect(errorBox?.classList.contains('hidden')).toBe(false);
+
+      // User clicks manual fallback button
+      const btnManual = document.getElementById('btn-loading-manual') as HTMLButtonElement;
+      btnManual.click();
+
+      const viewForm = document.getElementById('view-form');
+      expect(viewForm?.classList.contains('hidden')).toBe(false);
+
+      const roleInput = document.getElementById('field-role') as HTMLInputElement;
+      expect(roleInput.value).toBe('Senior QA Engineer - TechCorp');
+    });
   });
 });

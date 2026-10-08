@@ -34,7 +34,50 @@
         <div class="loading-spinner"></div>
         <div id="loading-portal-pill" class="portal-pill">Wykrywanie portalu...</div>
         <h3 class="loading-title">Analizowanie oferty</h3>
-        <p class="loading-subtitle">Pobieram dane oferty i analizuję przez AI...</p>
+        
+        <!-- Step-by-Step Status Checklist -->
+        <ul id="loading-checklist" class="loading-checklist">
+          <li id="step-detect" class="checklist-item step-pending">
+            <span class="step-icon">
+              <span class="dot-indicator"></span>
+            </span>
+            <span class="step-label">Wykrywanie portalu i karty</span>
+          </li>
+          <li id="step-scrape" class="checklist-item step-pending">
+            <span class="step-icon">
+              <span class="dot-indicator"></span>
+            </span>
+            <span class="step-label">Pobieranie treści ogłoszenia</span>
+          </li>
+          <li id="step-ai" class="checklist-item step-pending">
+            <span class="step-icon">
+              <span class="dot-indicator"></span>
+            </span>
+            <div class="step-text-group">
+              <span class="step-label">Analiza oferty przez AI</span>
+              <span id="step-ai-detail" class="step-detail hidden"></span>
+            </div>
+          </li>
+          <li id="step-duplicate" class="checklist-item step-pending">
+            <span class="step-icon">
+              <span class="dot-indicator"></span>
+            </span>
+            <div class="step-text-group">
+              <span class="step-label">Weryfikacja duplikatów w bazie</span>
+              <span id="step-dup-detail" class="step-detail hidden"></span>
+            </div>
+          </li>
+        </ul>
+
+        <!-- Inline Error & Retry Controls (Visible when a step fails) -->
+        <div id="loading-error-actions" class="loading-error-box hidden">
+          <p id="loading-error-message" class="loading-error-text">Wystąpił błąd podczas analizy oferty.</p>
+          <div class="loading-action-btns">
+            <button type="button" id="btn-loading-retry" class="btn btn-primary btn-sm">Spróbuj ponownie</button>
+            <button type="button" id="btn-loading-manual" class="btn btn-secondary btn-sm">Wypełnij ręcznie</button>
+            <button type="button" id="btn-loading-settings" class="btn btn-ghost btn-sm">Ustawienia</button>
+          </div>
+        </div>
       </div>
     </section>
 

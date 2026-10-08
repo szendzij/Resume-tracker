@@ -239,6 +239,76 @@ export async function updateApplication(serverUrl, id, applicationData) {
 }
 
 /**
+ * Updates an individual checklist item's visual status and optional detail label.
+ * @param {'step-detect'|'step-scrape'|'step-ai'|'step-duplicate'} stepId
+ * @param {'pending'|'running'|'done'|'warning'|'error'} status
+ * @param {string} [detailText]
+ */
+export function updateStepStatus(stepId, status, detailText = '') {
+  const el = document.getElementById(stepId);
+  if (!el) return;
+
+  el.classList.remove('step-pending', 'step-running', 'step-done', 'step-warning', 'step-error');
+  el.classList.add(`step-${status}`);
+
+  const iconEl = el.querySelector('.step-icon');
+  if (iconEl) {
+    if (status === 'pending') {
+      iconEl.innerHTML = '<span class="dot-indicator"></span>';
+    } else if (status === 'running') {
+      iconEl.innerHTML = '';
+    } else if (status === 'done') {
+      iconEl.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>
+      `;
+    } else if (status === 'warning') {
+      iconEl.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="8" x2="12" y2="12"></line>
+          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+      `;
+    } else if (status === 'error') {
+      iconEl.innerHTML = `
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      `;
+    }
+  }
+
+  const detailEl = el.querySelector('.step-detail');
+  if (detailEl) {
+    if (detailText) {
+      detailEl.textContent = detailText;
+      detailEl.classList.remove('hidden');
+    } else {
+      detailEl.textContent = '';
+      detailEl.classList.add('hidden');
+    }
+  }
+}
+
+/**
+ * Resets all loading checklist items to pending state and hides error action box.
+ */
+export function resetLoadingChecklist() {
+  updateStepStatus('step-detect', 'pending');
+  updateStepStatus('step-scrape', 'pending');
+  updateStepStatus('step-ai', 'pending');
+  updateStepStatus('step-duplicate', 'pending');
+
+  const errorBox = document.getElementById('loading-error-actions');
+  if (errorBox) {
+    errorBox.classList.add('hidden');
+  }
+}
+
+/**
  * Switches the active visible view panel in popup.html.
  * @param {'loading'|'form'|'success'|'settings'|'error'} viewName
  */
@@ -649,6 +719,40 @@ export function setupEventListeners() {
     });
   }
 
+  // Loading view error action buttons
+  const btnLoadingRetry = document.getElementById('btn-loading-retry');
+  if (btnLoadingRetry && !btnLoadingRetry.dataset.listenerAttached) {
+    btnLoadingRetry.dataset.listenerAttached = 'true';
+    btnLoadingRetry.addEventListener('click', () => {
+      initPopup();
+    });
+  }
+
+  const btnLoadingManual = document.getElementById('btn-loading-manual');
+  if (btnLoadingManual && !btnLoadingManual.dataset.listenerAttached) {
+    btnLoadingManual.dataset.listenerAttached = 'true';
+    btnLoadingManual.addEventListener('click', () => {
+      // Fallback: fill basic info from tab and switch to form
+      const roleInput = document.getElementById('field-role');
+      const portalInput = document.getElementById('field-portal');
+      if (roleInput && !roleInput.value && state.extractedData?.title) {
+        roleInput.value = state.extractedData.title;
+      }
+      if (portalInput && !portalInput.value && state.extractedData?.url) {
+        portalInput.value = deducePortalFromUrl(state.extractedData.url);
+      }
+      switchView('form');
+    });
+  }
+
+  const btnLoadingSettings = document.getElementById('btn-loading-settings');
+  if (btnLoadingSettings && !btnLoadingSettings.dataset.listenerAttached) {
+    btnLoadingSettings.dataset.listenerAttached = 'true';
+    btnLoadingSettings.addEventListener('click', () => {
+      switchView('settings');
+    });
+  }
+
   // Error view buttons
   const btnRetry = document.getElementById('btn-retry');
   if (btnRetry && !btnRetry.dataset.listenerAttached) {
@@ -778,15 +882,23 @@ export async function initPopup() {
     return;
   }
 
-  // 3. Switch to loading view and update portal pill
+  // 3. Switch to loading view, reset checklist, and update portal pill
   switchView('loading');
+  resetLoadingChecklist();
+  updateStepStatus('step-detect', 'running');
+
   const portalPill = document.getElementById('loading-portal-pill');
+  const deducedPortal = deducePortalFromUrl(tab.url);
   if (portalPill) {
-    portalPill.textContent = deducePortalFromUrl(tab.url);
+    portalPill.textContent = deducedPortal;
   }
+  updateStepStatus('step-detect', 'done');
 
   // 4. Inject extractor.js and extract offer content
+  updateStepStatus('step-scrape', 'running');
   let extracted = null;
+  let scrapeWarning = false;
+
   if (typeof chrome !== 'undefined' && chrome.scripting?.executeScript && tab.id) {
     try {
       const results = await chrome.scripting.executeScript({
@@ -796,6 +908,7 @@ export async function initPopup() {
       extracted = results?.[0]?.result;
     } catch (scriptErr) {
       console.warn('Nie udało się wykonać skryptu extractor.js w karcie:', scriptErr);
+      scrapeWarning = true;
     }
   }
 
@@ -810,117 +923,158 @@ export async function initPopup() {
   }
   state.extractedData = extracted;
 
-  // 5. Query server in parallel: fetch existing applications and parse job details
-  try {
-    const base = state.serverUrl.trim().replace(/\/+$/, '');
+  if (scrapeWarning) {
+    updateStepStatus('step-scrape', 'warning', 'Użyto podstawowych danych karty');
+  } else {
+    updateStepStatus('step-scrape', 'done');
+  }
 
-    // Fetch existing apps for duplicate detection
-    const appsPromise = (async () => {
-      try {
-        const res = await fetch(`${base}/api/applications`);
-        if (res.ok) {
-          return await res.json();
-        }
-        return [];
-      } catch {
-        return [];
+  // 5. Query server: fetch existing applications and parse job details
+  updateStepStatus('step-ai', 'running');
+  updateStepStatus('step-duplicate', 'running');
+
+  const base = state.serverUrl.trim().replace(/\/+$/, '');
+
+  // Step 5a: Fetch existing apps for duplicate detection
+  const appsPromise = (async () => {
+    try {
+      const res = await fetch(`${base}/api/applications`);
+      if (res.ok) {
+        const apps = await res.json();
+        updateStepStatus('step-duplicate', 'done');
+        return apps;
       }
+      updateStepStatus('step-duplicate', 'warning', 'Brak połączenia z bazą');
+      return [];
+    } catch {
+      updateStepStatus('step-duplicate', 'warning', 'Tryb offline');
+      return [];
+    }
+  })();
+
+  // Step 5b: Parse job details via backend AI/heuristics
+  let parsedData = null;
+  let existingApps = [];
+
+  try {
+    const parsePromise = (async () => {
+      const result = await parseJobDetails(state.serverUrl, extracted, state.customApiKey);
+      if (result.source === 'fallback' || result.source === 'heuristics') {
+        updateStepStatus('step-ai', 'warning', 'Użyto analizy heurystycznej');
+      } else {
+        updateStepStatus('step-ai', 'done');
+      }
+      return result;
     })();
 
-    // Parse job details via backend AI/heuristics
-    const parsedPromise = parseJobDetails(state.serverUrl, extracted, state.customApiKey);
-
-    const [existingApps, parsedData] = await Promise.all([appsPromise, parsedPromise]);
-
-    // 6. Populate form view
-    const roleInput = document.getElementById('field-role');
-    const companyInput = document.getElementById('field-company');
-    const locationInput = document.getElementById('field-location');
-    const salaryInput = document.getElementById('field-salary');
-    const portalInput = document.getElementById('field-portal');
-    const statusSelect = document.getElementById('field-status');
-    const notesTextarea = document.getElementById('field-notes');
-
-    const deducedPortal = deducePortalFromUrl(extracted.url);
-    const portalVal = parsedData.portal || deducedPortal;
-    let finalCompany = (parsedData.company || '').trim();
-
-    // Safeguard: Never populate portal name as company
-    if (
-      finalCompany &&
-      portalVal &&
-      (finalCompany.toLowerCase() === portalVal.toLowerCase() ||
-        finalCompany.toLowerCase() === 'the protocol' ||
-        finalCompany.toLowerCase() === 'the:protocol' ||
-        finalCompany.toLowerCase() === 'nofluffjobs' ||
-        finalCompany.toLowerCase() === 'pracuj.pl')
-    ) {
-      finalCompany = '';
-    }
-
-    let safeSalary = (parsedData.salary || '').trim();
-    if (
-      safeSalary.length > 70 ||
-      /(?:wymagani|obowiązk|oferujem|stanowisk|doświadczeni|nasz|zespół|projekt|poszukuj|aplikuj|kandydat|praca|benefity)/i.test(
-        safeSalary
-      )
-    ) {
-      const match = safeSalary.match(
-        /^(\d[\d\s,.]*(?:[-–—]|do)?\s*(?:\d[\d\s,.]*)?\s*(?:zł|PLN|EUR|USD|GBP|k\b)(?:\s*(?:netto|brutto|net|gross|\(\+?\s*VAT\)|\bB2B\b|\bUoP\b|\/\s*(?:h|godz(?:in[aę])?|m(?:ies(?:iąc|ięcznie)?)?|day|dzień|m-c|rok|yr|mo|month)))*)/i
-      );
-      safeSalary = match && match[1] && match[1].length <= 70 ? match[1].trim() : '';
-    }
-
-    if (roleInput) roleInput.value = parsedData.role || extracted.title || '';
-    if (companyInput) companyInput.value = finalCompany;
-    if (locationInput) locationInput.value = parsedData.location || '';
-    if (salaryInput) salaryInput.value = safeSalary;
-    if (portalInput) portalInput.value = portalVal;
-    if (statusSelect) statusSelect.value = parsedData.status || 'Do zaaplikowania';
-    if (notesTextarea) notesTextarea.value = parsedData.notes || '';
-
-    // Skills
-    state.skills = Array.isArray(parsedData.skills) ? [...parsedData.skills] : [];
-    renderSkillChips();
-
-    // Work type
-    if (parsedData.workType) {
-      setActiveWorkType(parsedData.workType);
-    } else {
-      detectAndSetWorkType(parsedData.location, parsedData.notes);
-    }
-
-    // Duplicate detection
-    const duplicate = findDuplicate(existingApps, {
-      url: extracted.url,
-      company: finalCompany,
-      role: parsedData.role,
-    });
-
-    state.matchedDuplicate = duplicate;
-    const dupBanner = document.getElementById('duplicate-banner');
-    const dupText = document.getElementById('duplicate-text');
-
-    if (duplicate && dupBanner && dupText) {
-      dupBanner.classList.remove('hidden');
-      dupText.textContent = `⚠️ Oferta już w bazie: ${duplicate.status || 'Wysłana'} z dnia ${
-        duplicate.appliedDate || 'nieznana'
-      }`;
-    } else if (dupBanner) {
-      dupBanner.classList.add('hidden');
-    }
-
-    switchView('form');
+    [existingApps, parsedData] = await Promise.all([appsPromise, parsePromise]);
   } catch (err) {
-    console.error('Błąd połączenia z serwerem podczas parsowania:', err);
-    switchView('error');
+    console.error('Błąd podczas analizy oferty:', err);
+    updateStepStatus('step-ai', 'error', err.message || 'Błąd połączenia');
+
+    // Show inline error box on checklist for immediate context
+    const loadingErrorBox = document.getElementById('loading-error-actions');
+    const loadingErrorMsg = document.getElementById('loading-error-message');
+    if (loadingErrorBox) {
+      loadingErrorBox.classList.remove('hidden');
+    }
+    if (loadingErrorMsg) {
+      loadingErrorMsg.textContent = `Błąd analizy: ${err.message || 'Nie udało się połączyć z serwerem'}.`;
+    }
+
+    // Also populate view-error and switch to error view if requested or for full error fallback
+    const viewError = document.getElementById('view-error');
     const errorBox = document.getElementById('error-message');
     if (errorBox) {
       errorBox.textContent = `Nie udało się połączyć z serwerem Resume Tracker (${
         err.message || 'Błąd sieci'
       }). Sprawdź, czy serwer działa i ma prawidłowy adres w Ustawieniach.`;
     }
+    switchView('error');
+    return;
   }
+
+  // Brief pause so the user perceives successful completion of checklist steps
+  await new Promise((resolve) => setTimeout(resolve, 250));
+
+  // 6. Populate form view
+  const roleInput = document.getElementById('field-role');
+  const companyInput = document.getElementById('field-company');
+  const locationInput = document.getElementById('field-location');
+  const salaryInput = document.getElementById('field-salary');
+  const portalInput = document.getElementById('field-portal');
+  const statusSelect = document.getElementById('field-status');
+  const notesTextarea = document.getElementById('field-notes');
+
+  const portalVal = parsedData.portal || deducedPortal;
+  let finalCompany = (parsedData.company || '').trim();
+
+  // Safeguard: Never populate portal name as company
+  if (
+    finalCompany &&
+    portalVal &&
+    (finalCompany.toLowerCase() === portalVal.toLowerCase() ||
+      finalCompany.toLowerCase() === 'the protocol' ||
+      finalCompany.toLowerCase() === 'the:protocol' ||
+      finalCompany.toLowerCase() === 'nofluffjobs' ||
+      finalCompany.toLowerCase() === 'pracuj.pl')
+  ) {
+    finalCompany = '';
+  }
+
+  let safeSalary = (parsedData.salary || '').trim();
+  if (
+    safeSalary.length > 70 ||
+    /(?:wymagani|obowiązk|oferujem|stanowisk|doświadczeni|nasz|zespół|projekt|poszukuj|aplikuj|kandydat|praca|benefity)/i.test(
+      safeSalary
+    )
+  ) {
+    const match = safeSalary.match(
+      /^(\d[\d\s,.]*(?:[-–—]|do)?\s*(?:\d[\d\s,.]*)?\s*(?:zł|PLN|EUR|USD|GBP|k\b)(?:\s*(?:netto|brutto|net|gross|\(\+?\s*VAT\)|\bB2B\b|\bUoP\b|\/\s*(?:h|godz(?:in[aę])?|m(?:ies(?:iąc|ięcznie)?)?|day|dzień|m-c|rok|yr|mo|month)))*)/i
+    );
+    safeSalary = match && match[1] && match[1].length <= 70 ? match[1].trim() : '';
+  }
+
+  if (roleInput) roleInput.value = parsedData.role || extracted.title || '';
+  if (companyInput) companyInput.value = finalCompany;
+  if (locationInput) locationInput.value = parsedData.location || '';
+  if (salaryInput) salaryInput.value = safeSalary;
+  if (portalInput) portalInput.value = portalVal;
+  if (statusSelect) statusSelect.value = parsedData.status || 'Do zaaplikowania';
+  if (notesTextarea) notesTextarea.value = parsedData.notes || '';
+
+  // Skills
+  state.skills = Array.isArray(parsedData.skills) ? [...parsedData.skills] : [];
+  renderSkillChips();
+
+  // Work type
+  if (parsedData.workType) {
+    setActiveWorkType(parsedData.workType);
+  } else {
+    detectAndSetWorkType(parsedData.location, parsedData.notes);
+  }
+
+  // Duplicate detection
+  const duplicate = findDuplicate(existingApps, {
+    url: extracted.url,
+    company: finalCompany,
+    role: parsedData.role,
+  });
+
+  state.matchedDuplicate = duplicate;
+  const dupBanner = document.getElementById('duplicate-banner');
+  const dupText = document.getElementById('duplicate-text');
+
+  if (duplicate && dupBanner && dupText) {
+    dupBanner.classList.remove('hidden');
+    dupText.textContent = `⚠️ Oferta już w bazie: ${duplicate.status || 'Wysłana'} z dnia ${
+      duplicate.appliedDate || 'nieznana'
+    }`;
+  } else if (dupBanner) {
+    dupBanner.classList.add('hidden');
+  }
+
+  switchView('form');
 }
 
 // Auto-initialize when loaded into a browser document
