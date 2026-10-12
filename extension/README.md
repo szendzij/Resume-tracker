@@ -1,71 +1,89 @@
-# Resume Tracker – Chrome Extension (Job Clipper)
+# 🧩 Resume Tracker – Chrome Extension (Job Clipper)
 
-Oficjalne rozszerzenie przeglądarki Chrome (Manifest V3) dla aplikacji **Resume Tracker**. Umożliwia błyskawiczne pobieranie i zapisywanie ofert pracy bezpośrednio z przeglądanych stron (Pracuj.pl, NoFluffJobs, LinkedIn, JustJoin.it itp.) do lokalnej lub sieciowej instancji Resume Tracker (np. na serwerze Proxmox).
-
----
-
-## 🚀 Funkcje
-
-- **1-Click Clip**: Automatyczne pobranie adresu URL, tytułu strony oraz zaznaczonego lub pełnego tekstu ogłoszenia.
-- **Skrót klawiszowy**: Szybkie otwarcie okna popup za pomocą skrótu `Alt+Shift+J`.
-- **Wsparcie dla sieci lokalnej (PNA)**: Pełna kompatybilność z instancjami uruchomionymi w sieci domowej / LAN (np. `http://192.168.x.x:3050` na Proxmoxie).
-- **Fallback Resilience**: Działa płynnie nawet w przypadku braku lub limitów klucza API Gemini (analiza heurystyczna na backendzie).
+> Official Manifest V3 browser extension for **Resume Tracker**. Instantly clip, parse, and save job postings directly from any job board (LinkedIn, Pracuj.pl, NoFluffJobs, JustJoin.it, Indeed, etc.) into your local or self-hosted Resume Tracker instance.
 
 ---
 
-## 📦 Instalacja w Google Chrome / Brave / Edge
+## 🇵🇱 Krótkie podsumowanie (Brief PL)
 
-1. Otwórz przeglądarkę i przejdź pod adres:
-   ```
+Oficjalna wtyczka przeglądarkowa (Chrome / Brave / Edge, Manifest V3) dla aplikacji **Resume Tracker**:
+- ⚡ **1-Click Job Clipping (`Alt+Shift+J`)**: Błyskawiczne pobieranie adresu URL, tytułu oraz treści ogłoszenia z aktywnej karty przeglądarki.
+- 📋 **Lista postępu na żywo (Step-by-Step Checklist)**: Wizualny podgląd każdego etapu przetwarzania (pobieranie treści DOM, analiza AI / heurystyczna, weryfikacja duplikatów).
+- 🔍 **Wykrywanie duplikatów**: Automatyczne sprawdzanie znormalizowanego URL oraz pary *Firma + Stanowisko* przed zapisem, z opcją szybkiego podglądu istniejącej aplikacji.
+- ✏️ **Edycja przed zapisem**: Możliwość korekty stanowiska, firmy, widełek płacowych, trybu pracy (*Remote / Hybrid / On-site*), tagów umiejętności (`Skills`) oraz notatek bezpośrednio w oknie popup.
+- 🌐 **Wsparcie dla LAN / Proxmox (PNA CORS)**: Pełna kompatybilność z instancjami w sieci lokalnej (np. `http://192.168.x.x:3050`) oraz opcja podania własnego klucza Gemini API.
+
+---
+
+## ✨ Key Features
+
+- **1-Click Job Extraction**: Automatically captures the page URL, title, structured JSON-LD metadata, and job description text from the active tab via `extractor.js`.
+- **Interactive Loading Checklist**: Real-time step-by-step status indicators:
+  1. *Extracting page content*
+  2. *Analyzing job details (Gemini AI / Heuristic fallback)*
+  3. *Checking for existing duplicates*
+- **Smart Duplicate Prevention**: Normalizes job URLs (stripping UTM/tracking parameters) and compares both the URL and case-insensitive `Company + Role` against your Resume Tracker database to prevent duplicate entries.
+- **Rich Pre-Save Form**: Edit extracted fields (`Role`, `Company`, `Portal`, `Status`, `Salary`, `Work Type` pills, interactive `Skills` badges, and `Notes`) before saving.
+- **Local Network & Self-Hosted Ready (PNA)**: Works seamlessly with `localhost` as well as LAN/Proxmox servers (`http://192.168.x.x:3050`) thanks to Private Network Access (`Access-Control-Allow-Private-Network: true`) headers and automatic legacy endpoint fallback (`/api/jobs/parse-job` -> `/api/parse-job`).
+- **Zero-Hard-Fail Resilience**: Supports an optional custom Gemini API key in extension settings and gracefully falls back to backend regex heuristics if no API key is configured or when rate limits occur.
+
+---
+
+## 📦 Installation (Chrome / Brave / Edge)
+
+1. Open your browser and navigate to:
+   ```text
    chrome://extensions
    ```
-2. W prawym górnym rogu włącz przełącznik **Tryb dewelopera** (Developer mode).
-3. Kliknij przycisk **Wczytaj rozpakowane** (Load unpacked) w lewym górnym rogu.
-4. W oknie wyboru wskaż folder `extension` z tego repozytorium:
-   ```
+2. Enable the **Developer mode** toggle in the top-right corner.
+3. Click **Load unpacked** in the top-left corner.
+4. Select the `extension` directory inside this repository:
+   ```text
    Resume-tracker/extension
    ```
-5. Rozszerzenie **Resume Tracker - Job Clipper** pojawi się na liście zainstalowanych dodatków. Przypnij je do paska narzędzi ikoną pinezki.
+5. Pin **Resume Tracker - Job Clipper** to your browser toolbar for one-click access.
 
 ---
 
-## ⚙️ Konfiguracja adresu instancji (Proxmox / Localhost)
+## ⚙️ Configuration (Localhost / LAN / Proxmox)
 
-Domyślnie rozszerzenie łączy się z adresem `http://localhost:3050`. Jeśli Twoja instancja Resume Tracker działa na maszynie wirtualnej lub kontenerze Proxmox w sieci lokalnej:
+By default, the extension connects to `http://localhost:3050`. If your Resume Tracker instance runs on a different port or on a self-hosted LAN/Proxmox server:
 
-1. Kliknij ikonę rozszerzenia na pasku zadań lub naciśnij skrót `Alt+Shift+J`.
-2. Kliknij ikonę ustawień (lub przejdź do sekcji konfiguracji w oknie popup).
-3. Podaj adres URL swojej instancji serwera, np.:
-   ```
-   http://192.168.1.150:3050
-   ```
-4. Zapisz ustawienia. Adres zostanie zachowany w pamięci `chrome.storage.sync`.
+1. Click the extension icon in the toolbar or press `Alt+Shift+J`.
+2. Click the **Settings (gear)** icon in the top-right corner of the popup.
+3. Configure your settings:
+   - **Server URL**: Enter your instance URL, e.g.:
+     ```text
+     http://192.168.1.150:3050
+     ```
+   - **Gemini API Key (Optional)**: Provide a custom Google Gemini API key if your server does not have `GEMINI_API_KEY` configured in its environment.
+4. Click **Save Settings**. Your configuration is persisted across sessions via `chrome.storage.sync`.
 
 ---
 
-## ⌨️ Skróty klawiszowe
+## ⌨️ Keyboard Shortcuts
 
-| Skrót | Akcja |
+| Shortcut | Action |
 |---|---|
-| `Alt+Shift+J` | Otwórz okno popup Job Clipper na aktywnej karcie |
+| `Alt+Shift+J` | Open the Job Clipper popup and immediately extract the active tab |
 
-> Skrót można zmienić w dowolnym momencie pod adresem: `chrome://extensions/shortcuts`.
+> You can customize this shortcut anytime at `chrome://extensions/shortcuts`.
 
 ---
 
-## 🛠️ Generowanie ikon
+## 🛠️ Generating Extension Icons
 
-Ikony rozszerzenia są generowane programowo za pomocą skryptu:
+Extension icons (`16x16`, `48x48`, `128x128` PNGs in `extension/icons/`) can be regenerated programmatically using:
+
 ```bash
 node extension/generate-icons.cjs
 ```
-Skrypt generuje ikony PNG o rozmiarach 16x16, 48x48 oraz 128x128 w katalogu `extension/icons/`.
 
 ---
 
-## 🔒 Uprawnienia (Permissions)
+## 🔒 Permissions Explained
 
-- `activeTab`: Dostęp do adresu URL i tytułu aktualnie przeglądanej karty w momencie kliknięcia rozszerzenia.
-- `scripting`: Możliwość pobrania tekstu ogłoszenia z otwartej strony.
-- `storage`: Przechowywanie konfiguracji adresu URL serwera i preferencji użytkownika.
-- `host_permissions` (`http://*/*`, `https://*/*`): Komunikacja z dowolnym adresem instancji Resume Tracker (zarówno `localhost`, domeny publiczne, jak i adresy IP sieci lokalnej).
+- `activeTab`: Grants temporary access to the URL and DOM of the currently active tab when the user invokes the extension.
+- `scripting`: Allows injecting `extractor.js` into the active tab to read job posting text and metadata.
+- `storage`: Persists the user's Server URL and optional Gemini API Key in `chrome.storage.sync`.
+- `host_permissions` (`http://*/*`, `https://*/*`): Enables API communication with self-hosted Resume Tracker instances on any local, LAN, or public domain.
