@@ -23,6 +23,7 @@ import {
   Send,
 } from 'lucide-react';
 import { JobApplication } from '../types';
+import { ModalShell } from './common/ModalShell';
 import { exportApplicationsToCSV, exportApplicationsToJSON } from '../services/export.service';
 import { api, getCustomGeminiKey, setCustomGeminiKey } from '../services/api';
 
@@ -206,31 +207,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
-        {/* Modal Header */}
-        <div className="px-6 py-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-              <Settings className="w-4 h-4" />
-            </div>
-            <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                Ustawienia aplikacji
-              </h3>
-              <p className="text-xs text-slate-500">
-                Zarządzaj motywem, importem/eksportem danych, pocztą oraz modelem Gemini AI
-              </p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
+      <ModalShell
+        title="Ustawienia aplikacji"
+        subtitle="Zarządzaj motywem, importem/eksportem danych, pocztą oraz modelem Gemini AI"
+        icon={<Settings className="w-4 h-4" />}
+        onClose={onClose}
+        panelClassName="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl w-full max-w-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden"
+      >
 
         {/* Tab Navigation */}
         <div className="px-6 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 sm:gap-6 text-xs font-semibold overflow-x-auto">
@@ -922,7 +905,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             Zamknij
           </button>
         </div>
-      </div>
+      </ModalShell>
     </div>
   );
 };

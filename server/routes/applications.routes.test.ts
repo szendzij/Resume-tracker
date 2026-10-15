@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import express from 'express';
 import http from 'http';
 import { applicationsRouter } from './applications.routes';
+import { errorHandler } from '../middleware/errorHandler';
 import { dbService } from '../services/db.service';
 import { JobApplication } from '../../shared/types';
 
@@ -27,6 +28,9 @@ describe('applicationsRouter', () => {
     app = express();
     app.use(express.json());
     app.use('/api/applications', applicationsRouter);
+    // Central error handler mounted at the app level (mirrors server/app.ts), so
+    // the router itself stays free of error-handler wiring.
+    app.use(errorHandler);
 
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {

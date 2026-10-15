@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { JobApplication, JobStatus } from '../types';
-import { ALL_STATUSES, STATUS_CONFIG, formatPolishDate } from '../utils/statusConfig';
+import { STATUS_CONFIG, formatPolishDate } from '../utils/statusConfig';
+import { StatusSelect } from './common/StatusSelect';
 import {
   parseCsvApplications,
   downloadSampleCsvTemplate,
@@ -464,17 +465,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
                   <label className="block text-[11px] font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Domyślny status (dla pustych)
                   </label>
-                  <select
-                    value={defaultStatus}
-                    onChange={(e) => setDefaultStatus(e.target.value as JobStatus)}
-                    className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
-                  >
-                    {ALL_STATUSES.map((st) => (
-                      <option key={st} value={st}>
-                        {st}
-                      </option>
-                    ))}
-                  </select>
+                  <StatusSelect value={defaultStatus} onChange={setDefaultStatus} />
                 </div>
 
                 {/* Default Date */}

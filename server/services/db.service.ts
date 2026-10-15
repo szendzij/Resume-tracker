@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
-import { JobApplication, JobStatus, ApplicationTimelineEntry } from '../../shared/types';
+import { JobApplication, JobStatus, ApplicationTimelineEntry, DEFAULT_STATUS } from '../../shared/types';
+import { withRetry } from './retry';
 
 export const prisma = new PrismaClient();
 
@@ -59,7 +60,7 @@ function buildUpsertArgs(app: JobApplication) {
       portal: app.portal || 'LinkedIn',
       url: app.url || '',
       appliedDate: app.appliedDate || now.split('T')[0],
-      status: app.status || 'Wysłana',
+      status: app.status || DEFAULT_STATUS,
       location: app.location || null,
       salary: app.salary || null,
       skills: skillsJson,
@@ -120,25 +121,10 @@ export const dbService = {
     }
 
     const operations = apps.map((app) => prisma.application.upsert(buildUpsertArgs(app)));
-    const maxAttempts = 3;
-    let attempt = 0;
-
-    while (attempt < maxAttempts) {
-      attempt++;
-      try {
-        const results = await prisma.$transaction(operations);
-        return { count: results.length };
-      } catch (err: any) {
-        if (isRetryableDbError(err) && attempt < maxAttempts) {
-          const backoffMs = attempt * 50;
-          await new Promise((resolve) => setTimeout(resolve, backoffMs));
-          continue;
-        }
-        throw err;
-      }
-    }
-
-    return { count: 0 };
+    const results = await withRetry(() => prisma.$transaction(operations), {
+      isRetryable: isRetryableDbError,
+    });
+    return { count: results.length };
   },
 
   async deleteApplication(id: string): Promise<boolean> {
@@ -191,25 +177,10 @@ export const dbService = {
       });
     });
 
-    const maxAttempts = 3;
-    let attempt = 0;
-
-    while (attempt < maxAttempts) {
-      attempt++;
-      try {
-        const results = await prisma.$transaction(operations);
-        return results.length;
-      } catch (err: any) {
-        if (isRetryableDbError(err) && attempt < maxAttempts) {
-          const backoffMs = attempt * 50;
-          await new Promise((resolve) => setTimeout(resolve, backoffMs));
-          continue;
-        }
-        throw err;
-      }
-    }
-
-    return 0;
+    const results = await withRetry(() => prisma.$transaction(operations), {
+      isRetryable: isRetryableDbError,
+    });
+    return results.length;
   },
 
 

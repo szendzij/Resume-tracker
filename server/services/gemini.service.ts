@@ -1,5 +1,7 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { ENV } from '../config/env';
+import { withRetry } from './retry';
+import { batchParseResponseConfig, singleJobResponseConfig } from './gemini-schemas';
 
 let aiClient: GoogleGenAI | null = null;
 
@@ -116,61 +118,25 @@ Zidentyfikuj i wyodrębnij w języku polskim:
 7. "skills": Tablica głównych wymaganych technologii i narzędzi wymienionych w ofercie (np. ["Python", "Robot Framework", "SQL", "Jenkins", "Git", "Jira", "Selenium"]).
 8. "notes": Krótka notatka podsumowująca kluczowe parametry oferty (max 1 zdanie).`;
 
-  const maxAttempts = 3;
-  let lastError: any = null;
+  const isTransient = (err: any): boolean =>
+    err?.status === 503 ||
+    err?.status === 429 ||
+    err?.message?.includes('503') ||
+    err?.message?.includes('high demand') ||
+    err?.message?.includes('rate limit');
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
+  return withRetry(
+    async () => {
       const response = await ai.models.generateContent({
         model: ENV.GEMINI_MODEL,
         contents: prompt,
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              role: { type: Type.STRING, description: 'Nazwa stanowiska' },
-              company: { type: Type.STRING, description: 'Nazwa firmy (nie portalu!)' },
-              location: { type: Type.STRING, description: 'Lokalizacja pracy' },
-              salary: {
-                type: Type.STRING,
-                description:
-                  'Tylko zwięzła kwota/widełki wynagrodzenia (max 50 znaków, np. "18 000 - 24 000 PLN"). NIGDY treść oferty. Puste "" jeśli brak.',
-              },
-              workType: { type: Type.STRING, description: 'Tryb pracy: "Zdalnie", "Hybrydowo" lub "Stacjonarnie"' },
-              portal: { type: Type.STRING, description: 'Portal rekrutacyjny lub źródło' },
-              skills: {
-                type: Type.ARRAY,
-                items: { type: Type.STRING },
-                description: 'Główne wymagane umiejętności lub technologie',
-              },
-              notes: { type: Type.STRING, description: 'Krótkie podsumowanie lub notatka' },
-            },
-            required: ['role', 'company', 'portal'],
-          },
-        },
+        config: singleJobResponseConfig,
       });
 
       return JSON.parse(response.text || '{}');
-    } catch (err: any) {
-      lastError = err;
-      const isTransient =
-        err?.status === 503 ||
-        err?.status === 429 ||
-        err?.message?.includes('503') ||
-        err?.message?.includes('high demand') ||
-        err?.message?.includes('rate limit');
-
-      if (isTransient && attempt < maxAttempts) {
-        const delay = attempt * 800;
-        await new Promise((r) => setTimeout(r, delay));
-        continue;
-      }
-      break;
-    }
-  }
-
-  throw lastError;
+    },
+    { attempts: 3, baseDelayMs: 800, isRetryable: isTransient }
+  );
 }
 
 export async function parseBatchChunkWithGemini(
@@ -205,28 +171,7 @@ ${promptItems}`;
   const aiResponse = await ai.models.generateContent({
     model: ENV.GEMINI_MODEL,
     contents: prompt,
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            index: { type: Type.INTEGER },
-            role: { type: Type.STRING },
-            company: { type: Type.STRING },
-            location: { type: Type.STRING },
-            portal: { type: Type.STRING },
-            skills: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-            },
-            notes: { type: Type.STRING },
-          },
-          required: ['index', 'role', 'company'],
-        },
-      },
-    },
+    config: batchParseResponseConfig,
   });
 
   return JSON.parse(aiResponse.text || '[]') as any[];

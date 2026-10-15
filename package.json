@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx server.ts",
     "check:entrypoint": "node .agents/scripts/check-entrypoint.cjs",
-    "build": "node .agents/scripts/check-entrypoint.cjs && prisma generate && vite build && esbuild ./server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build:extension-vendor": "esbuild shared/utils/urlUtils.ts --bundle --format=esm --outfile=extension/vendor/urlUtils.js",
+    "build": "node .agents/scripts/check-entrypoint.cjs && prisma generate && npm run build:extension-vendor && vite build && esbuild ./server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",

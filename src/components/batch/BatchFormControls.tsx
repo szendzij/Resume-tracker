@@ -1,6 +1,6 @@
 import React from 'react';
 import { JobStatus } from '../../types';
-import { ALL_STATUSES } from '../../utils/statusConfig';
+import { StatusSelect } from '../common/StatusSelect';
 import { Sparkles, Loader2, BrainCircuit } from 'lucide-react';
 
 interface BatchFormControlsProps {
@@ -36,17 +36,7 @@ export const BatchFormControls: React.FC<BatchFormControlsProps> = ({
           <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Domyślny status dla importu
           </label>
-          <select
-            value={defaultStatus}
-            onChange={(e) => setDefaultStatus(e.target.value as JobStatus)}
-            className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 outline-none"
-          >
-            {ALL_STATUSES.map((st) => (
-              <option key={st} value={st}>
-                {st}
-              </option>
-            ))}
-          </select>
+          <StatusSelect value={defaultStatus} onChange={setDefaultStatus} />
         </div>
 
         {/* Default Date */}
