@@ -71,6 +71,17 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
     });
   }, [rawCsvText, existingApplications, delimiter, customMappings, defaultStatus, defaultDate]);
 
+  // Identity of the current parsed row set. `parseCsvApplications` regenerates
+  // row ids on every parse, so this key changes exactly when the rows do. The
+  // selection-sync effect must track that: depending on `totalRows` alone left
+  // `selectedRowIds` holding ids from a previous parse (the first pass also
+  // auto-populates `customMappings`, which re-runs the memo), so importing
+  // filtered the fresh items down to nothing and handed the caller an empty array.
+  const parseRowKey = useMemo(
+    () => (parseResult ? parseResult.items.map((item) => item.id).join('|') : ''),
+    [parseResult]
+  );
+
   // Sync default selection whenever parseResult items change
   useEffect(() => {
     if (!parseResult) {
@@ -94,7 +105,7 @@ export const CsvImportModal: React.FC<CsvImportModalProps> = ({
       }
     });
     setSelectedRowIds(initialSelected);
-  }, [parseResult?.totalRows, skipDuplicates]);
+  }, [parseRowKey, skipDuplicates]);
 
   if (!isOpen) return null;
 

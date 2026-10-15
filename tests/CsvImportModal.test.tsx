@@ -193,15 +193,11 @@ describe('CsvImportModal (characterization)', () => {
     expect(screen.getByText('Senior Software Engineer')).toBeTruthy();
   });
 
-  // =====================================================================
-  // KNOWN DEFECT — see task report. Assertions below encode the CORRECT
-  // behaviour and currently FAIL, so the case is marked `it.fails` to keep
-  // the suite green while the bug is open. It must be flipped back to `it(`
-  // once CsvImportModal re-synchronizes the row selection when the memoized
-  // parse result (and therefore the per-row ids) is recomputed after
-  // `customMappings` is auto-populated.
-  // =====================================================================
-  it.fails('imports selected rows through onImportApplications and closes the modal', async () => {
+  // Regression guard for the selection desync: the first parse pass auto-populates
+  // `customMappings`, which recomputes the memo and regenerates every row id. The
+  // selection-sync effect used to watch only `totalRows`, so it kept ids from the
+  // previous parse and this import delivered an empty array to the caller.
+  it('imports selected rows through onImportApplications and closes the modal', async () => {
     renderModal();
     fireEvent.click(screen.getByText('Załaduj przykładowe dane CSV'));
 
