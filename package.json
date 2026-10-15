@@ -12,6 +12,10 @@
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
     "lint": "tsc --noEmit",
+    "db:migrate": "prisma migrate deploy",
+    "db:baseline": "node scripts/db-baseline.mjs",
+    "db:setup": "prisma migrate deploy || (npm run db:baseline && prisma migrate deploy)",
+    "pretest": "npm run db:setup",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:smoke": "node .agents/scripts/smoke-test-server.cjs"

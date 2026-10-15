@@ -1,8 +1,102 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, Prisma } from '@prisma/client';
+import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
+import path from 'node:path';
 import { JobApplication, JobStatus, ApplicationTimelineEntry, DEFAULT_STATUS } from '../../shared/types';
 import { withRetry } from './retry';
 
 export const prisma = new PrismaClient();
+
+// Single source of truth for the schema: Prisma Migrate (see prisma/migrations).
+// No raw DDL is executed anywhere — the baseline migration creates the table.
+const MIGRATIONS_DIR = path.join(process.cwd(), 'prisma', 'migrations');
+const PRISMA_CLI = path.join(process.cwd(), 'node_modules', 'prisma', 'build', 'index.js');
+
+function listLocalMigrations(): string[] {
+  try {
+    return fs
+      .readdirSync(MIGRATIONS_DIR, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+function findBaselineMigration(): string | null {
+  return listLocalMigrations().find((name) => name.endsWith('_baseline')) ?? null;
+}
+
+/**
+ * True only for Prisma error P3005 — "the database schema is not empty", i.e. the
+ * database was created before migrations existed and needs baselining.
+ */
+function isNotBaselinedError(error: unknown): boolean {
+  const err = error as { message?: string; stdout?: Buffer | string; stderr?: Buffer | string };
+  const text = [
+    err?.message,
+    err?.stdout?.toString(),
+    err?.stderr?.toString(),
+  ]
+    .filter(Boolean)
+    .join('\n');
+  return text.includes('P3005') || text.includes('database schema is not empty');
+}
+
+/**
+ * Fast in-process check: true when every local migration is recorded as applied.
+ * Avoids spawning the Prisma CLI (slow on fsync-bound storage) on every startup
+ * when the schema has not changed.
+ */
+async function schemaIsUpToDate(): Promise<boolean> {
+  const local = listLocalMigrations();
+  if (local.length === 0) return false;
+  try {
+    const applied = await prisma.$queryRaw<Array<{ migration_name: string }>>`
+      SELECT migration_name FROM _prisma_migrations
+      WHERE finished_at IS NOT NULL AND rolled_back_at IS NULL
+    `;
+    const appliedNames = new Set(applied.map((row) => row.migration_name));
+    return local.every((name) => appliedNames.has(name));
+  } catch {
+    return false;
+  }
+}
+
+function runPrismaCli(args: string[]): void {
+  execFileSync(process.execPath, [PRISMA_CLI, ...args], {
+    stdio: ['ignore', 'pipe', 'pipe'],
+    env: process.env,
+  });
+}
+
+/**
+ * Apply pending Prisma migrations.
+ *
+ * Fresh databases receive the full schema from the baseline migration. Databases
+ * created before migrations existed already contain the table, so `deploy` fails
+ * with P3005 ("database schema is not empty") until the baseline is marked as
+ * applied — that is the documented migrate-baseline flow, handled here so the
+ * "table already exists" case stays tolerated.
+ */
+function applyMigrations(): void {
+  if (!fs.existsSync(PRISMA_CLI)) return;
+  try {
+    runPrismaCli(['migrate', 'deploy']);
+  } catch (deployError) {
+    // Only P3005 ("database schema is not empty") means "this database predates
+    // migrations", which is the case the baseline flow exists for. Any other
+    // failure (bad SQL, disk full, lock) must surface instead of being masked by
+    // marking the migration as applied — a false baseline silently skips schema
+    // changes and is far worse than a loud startup error.
+    if (!isNotBaselinedError(deployError)) throw deployError;
+    const baseline = findBaselineMigration();
+    if (!baseline) throw deployError;
+    runPrismaCli(['migrate', 'resolve', '--applied', baseline]);
+    runPrismaCli(['migrate', 'deploy']);
+  }
+}
 
 function safeJsonParse<T>(jsonStr: string | null | undefined, fallback: T): T {
   if (!jsonStr) return fallback;
@@ -152,7 +246,7 @@ export const dbService = {
     }
 
     const operations = updates.map((item) => {
-      const data: any = {
+      const data: Prisma.ApplicationUncheckedUpdateInput = {
         lastUpdated: item.lastUpdated || new Date().toISOString(),
       };
       if (item.role !== undefined) data.role = item.role;
@@ -189,32 +283,10 @@ export const dbService = {
       // Connect to SQLite
       await prisma.$connect();
 
-      // Automatically ensure Application table exists without requiring external CLI migrations
-      await prisma.$executeRawUnsafe(`
-        CREATE TABLE IF NOT EXISTS "Application" (
-          "id" TEXT PRIMARY KEY NOT NULL,
-          "role" TEXT NOT NULL,
-          "company" TEXT NOT NULL,
-          "portal" TEXT,
-          "url" TEXT,
-          "appliedDate" TEXT NOT NULL,
-          "status" TEXT NOT NULL DEFAULT 'Wysłana',
-          "location" TEXT,
-          "salary" TEXT,
-          "skills" TEXT,
-          "timeline" TEXT,
-          "notes" TEXT,
-          "lastUpdated" TEXT,
-          "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-          "updatedAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        );
-      `);
-
-      // Attempt to add column for existing databases
-      try {
-        await prisma.$executeRawUnsafe(`ALTER TABLE "Application" ADD COLUMN "timeline" TEXT;`);
-      } catch {
-        // Column already exists or table freshly created
+      // Ensure the schema comes from Prisma migrations only (no raw DDL).
+      // Existing databases (table already present) are baselined automatically.
+      if (!(await schemaIsUpToDate())) {
+        applyMigrations();
       }
 
       console.log('Database connected and schema verified (SQLite)');

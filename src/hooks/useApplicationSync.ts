@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef, type Dispatch, type SetStateAction, type MutableRefObject } from 'react';
 import { JobApplication } from '../types';
-import { INITIAL_JOB_APPLICATIONS } from '../data/initialJobs';
 import { api } from '../services/api';
 
 export const STORAGE_KEY = 'job_tracker_applications_v1';
@@ -36,7 +35,9 @@ export function useApplicationSync(onNotification?: (msg: string) => void): Appl
     } catch (e) {
       console.error('Error reading localStorage', e);
     }
-    return INITIAL_JOB_APPLICATIONS;
+    // No user data cached locally -> start empty and hydrate from the backend.
+    // Seed/demo data is never shown or pushed unless the user explicitly resets to it.
+    return [];
   });
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -71,9 +72,13 @@ export function useApplicationSync(onNotification?: (msg: string) => void): Appl
           setApplications(serverApps);
           setSyncStatus('idle');
         } else {
-          // Database is empty -> bootstrap from localStorage or initial list
+          // Database is empty -> bootstrap ONLY the entries the user actually has
+          // in localStorage (their own data). Seed/demo data (INITIAL_JOB_APPLICATIONS)
+          // is never pushed automatically; if localStorage is empty we push nothing
+          // and simply show an empty state, so a fresh self-hosted database is never
+          // silently populated with demo offers.
           const localSaved = localStorage.getItem(STORAGE_KEY);
-          let toBootstrap = INITIAL_JOB_APPLICATIONS;
+          let toBootstrap: JobApplication[] = [];
           if (localSaved) {
             try {
               const parsed = JSON.parse(localSaved);
@@ -81,7 +86,7 @@ export function useApplicationSync(onNotification?: (msg: string) => void): Appl
                 toBootstrap = parsed;
               }
             } catch {
-              // fallback to initial
+              // Malformed cache -> nothing to bootstrap, keep the empty state.
             }
           }
 
@@ -94,7 +99,11 @@ export function useApplicationSync(onNotification?: (msg: string) => void): Appl
               setSyncStatus('idle');
             }
           } else {
-            setSyncStatus('idle');
+            if (isMounted) {
+              applicationsRef.current = [];
+              setApplications([]);
+              setSyncStatus('idle');
+            }
           }
         }
       } catch (err) {

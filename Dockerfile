@@ -43,4 +43,6 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://localhost:3000/api/health || exit 1
 
-CMD ["bun", "run", "dist/server.cjs"]
+# Apply Prisma migrations before starting (fresh volumes get the baseline schema;
+# pre-existing databases are baselined so `deploy` does not fail with P3005).
+CMD ["sh", "-c", "bunx prisma migrate deploy || (bunx prisma migrate resolve --applied $(ls prisma/migrations | grep _baseline | head -n1) && bunx prisma migrate deploy); exec bun run dist/server.cjs"]
