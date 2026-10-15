@@ -5,6 +5,17 @@ import { api } from '../services/api';
 import { detectDuplicate } from '../utils/duplicateDetector';
 import { appendTimelineTransition, createInitialTimelineEntry } from '../utils/timelineUtils';
 import type { SyncStatus } from './useApplicationSync';
+import { runOptimisticMutation, type OptimisticMutation } from './useOptimisticMutation';
+
+/** Appends a status transition to an application, supplying the standard fallbacks. */
+function appendStatusTransition(
+  app: JobApplication,
+  newStatus: JobStatus,
+  date: string,
+  notes?: string
+): ApplicationTimelineEntry[] {
+  return appendTimelineTransition(app.timeline, newStatus, date, notes, app.id, app.appliedDate, app.status);
+}
 
 export interface OptimisticCrudContext {
   applications: JobApplication[];
@@ -35,6 +46,11 @@ export interface OptimisticCrudResult {
  * Owns all mutations of the applications collection. Each mutation applies an
  * optimistic update locally, then syncs to the server and rolls the affected
  * entries back to their captured originals when the sync fails.
+ *
+ * The two pieces that every mutation shares — the optimistic-update/rollback
+ * sequence (`runOptimisticMutation`) and "overlay a map of patches onto the
+ * collection" — live in helpers, so each mutation below only describes *what*
+ * changes and *how* to undo it.
  */
 export function useOptimisticCrud({
   applications,
@@ -43,6 +59,25 @@ export function useOptimisticCrud({
   setSyncStatus,
   notify,
 }: OptimisticCrudContext): OptimisticCrudResult {
+  const run = useCallback(
+    <T,>(mutation: OptimisticMutation<T>) =>
+      runOptimisticMutation(mutation, { setSyncStatus, notify }),
+    [setSyncStatus, notify]
+  );
+
+  // Overlays a map of partial patches onto the collection by id (used for both
+  // the optimistic update and the rollback of every map-shaped mutation).
+  const applyPatches = useCallback(
+    (patches: ReadonlyMap<string, Partial<JobApplication>>) =>
+      setApplications((prev) =>
+        prev.map((app) => {
+          const patch = patches.get(app.id);
+          return patch ? { ...app, ...patch } : app;
+        })
+      ),
+    [setApplications]
+  );
+
   // Status change for single application with optimistic update and rollback
   const updateStatus = useCallback(
     async (id: string, newStatus: JobStatus, customDate?: string) => {
@@ -55,15 +90,7 @@ export function useOptimisticCrud({
 
       const now = new Date().toISOString();
       const today = customDate || now.split('T')[0];
-      const newTimeline = appendTimelineTransition(
-        targetApp.timeline,
-        newStatus,
-        today,
-        undefined,
-        targetApp.id,
-        targetApp.appliedDate,
-        targetApp.status
-      );
+      const newTimeline = appendStatusTransition(targetApp, newStatus, today);
 
       const updatePayload = {
         status: newStatus,
@@ -71,34 +98,27 @@ export function useOptimisticCrud({
         lastUpdated: now,
       };
 
-      setApplications((prev) =>
-        prev.map((app) => (app.id === id ? { ...app, ...updatePayload } : app))
-      );
-      notify(`Zmieniono status na: ${newStatus}`);
-
-      setSyncStatus('syncing');
-      try {
-        await api.updateApplication(id, updatePayload);
-        setSyncStatus('idle');
-      } catch (err) {
-        console.error('Failed to sync status update to server', err);
-        setApplications((prev) =>
-          prev.map((app) =>
-            app.id === id
-              ? {
-                  ...app,
-                  status: originalStatus,
-                  timeline: originalTimeline,
-                  lastUpdated: originalLastUpdated,
-                }
-              : app
-          )
-        );
-        setSyncStatus('error');
-        notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-      }
+      await run({
+        applyOptimistic: () => setApplications((prev) => prev.map((app) => (app.id === id ? { ...app, ...updatePayload } : app))),
+        notifyOptimistic: () => notify(`Zmieniono status na: ${newStatus}`),
+        request: () => api.updateApplication(id, updatePayload),
+        rollback: () =>
+          setApplications((prev) =>
+            prev.map((app) =>
+              app.id === id
+                ? {
+                    ...app,
+                    status: originalStatus,
+                    timeline: originalTimeline,
+                    lastUpdated: originalLastUpdated,
+                  }
+                : app
+            )
+          ),
+        errorLabel: 'Failed to sync status update to server',
+      });
     },
-    [notify]
+    [applicationsRef, notify, run, setApplications]
   );
 
   // Save or update an application
@@ -115,15 +135,7 @@ export function useOptimisticCrud({
 
         let updatedTimeline = data.timeline ?? targetApp.timeline;
         if (!data.timeline && data.status && data.status !== targetApp.status) {
-          updatedTimeline = appendTimelineTransition(
-            targetApp.timeline,
-            data.status,
-            today,
-            undefined,
-            targetApp.id,
-            targetApp.appliedDate,
-            targetApp.status
-          );
+          updatedTimeline = appendStatusTransition(targetApp, data.status, today);
         }
 
         const updatePayload: Partial<JobApplication> = {
@@ -132,25 +144,13 @@ export function useOptimisticCrud({
           lastUpdated: now,
         };
 
-        setApplications((prev) =>
-          prev.map((app) =>
-            app.id === existingId ? { ...app, ...updatePayload } : app
-          )
-        );
-        notify('Zaktualizowano aplikację.');
-
-        setSyncStatus('syncing');
-        try {
-          await api.updateApplication(existingId, updatePayload);
-          setSyncStatus('idle');
-        } catch (err) {
-          console.error('Failed to sync application update to server', err);
-          setApplications((prev) =>
-            prev.map((app) => (app.id === existingId ? originalApp : app))
-          );
-          setSyncStatus('error');
-          notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-        }
+        await run({
+          applyOptimistic: () => setApplications((prev) => prev.map((app) => (app.id === existingId ? { ...app, ...updatePayload } : app))),
+          notifyOptimistic: () => notify('Zaktualizowano aplikację.'),
+          request: () => api.updateApplication(existingId, updatePayload),
+          rollback: () => setApplications((prev) => prev.map((app) => (app.id === existingId ? originalApp : app))),
+          errorLabel: 'Failed to sync application update to server',
+        });
       } else {
         const newAppDate = data.appliedDate || today;
         const newAppId = `job-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
@@ -173,22 +173,16 @@ export function useOptimisticCrud({
           lastUpdated: now,
         };
 
-        setApplications((prev) => [newApp, ...prev]);
-        notify('Dodano nową aplikację!');
-
-        setSyncStatus('syncing');
-        try {
-          await api.createApplication(newApp);
-          setSyncStatus('idle');
-        } catch (err) {
-          console.error('Failed to sync new application to server', err);
-          setApplications((prev) => prev.filter((app) => app.id !== newApp.id));
-          setSyncStatus('error');
-          notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-        }
+        await run({
+          applyOptimistic: () => setApplications((prev) => [newApp, ...prev]),
+          notifyOptimistic: () => notify('Dodano nową aplikację!'),
+          request: () => api.createApplication(newApp),
+          rollback: () => setApplications((prev) => prev.filter((app) => app.id !== newApp.id)),
+          errorLabel: 'Failed to sync new application to server',
+        });
       }
     },
-    [notify]
+    [applicationsRef, notify, run, setApplications]
   );
 
   // Delete an application
@@ -197,23 +191,16 @@ export function useOptimisticCrud({
       const targetApp = applicationsRef.current.find((a) => a.id === id);
       if (!targetApp) return;
 
-      setApplications((prev) => prev.filter((a) => a.id !== id));
-      notify(`Usunięto aplikację${companyName ? ` do firmy ${companyName}` : ''}.`);
-
-      setSyncStatus('syncing');
-      try {
-        await api.deleteApplication(id);
-        setSyncStatus('idle');
-      } catch (err) {
-        console.error('Failed to sync deletion to server', err);
-        setApplications((prev) =>
-          prev.some((a) => a.id === targetApp.id) ? prev : [targetApp, ...prev]
-        );
-        setSyncStatus('error');
-        notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-      }
+      await run({
+        applyOptimistic: () => setApplications((prev) => prev.filter((a) => a.id !== id)),
+        notifyOptimistic: () =>
+          notify(`Usunięto aplikację${companyName ? ` do firmy ${companyName}` : ''}.`),
+        request: () => api.deleteApplication(id),
+        rollback: () => setApplications((prev) => (prev.some((a) => a.id === targetApp.id) ? prev : [targetApp, ...prev])),
+        errorLabel: 'Failed to sync deletion to server',
+      });
     },
-    [notify]
+    [applicationsRef, notify, run, setApplications]
   );
 
   // Add multiple applications (from batch import)
@@ -222,26 +209,20 @@ export function useOptimisticCrud({
       if (!newApps || newApps.length === 0) return;
       const addedIds = new Set(newApps.map((a) => a.id));
 
-      setApplications((prev) => [...newApps, ...prev]);
-
-      if (duplicateCount > 0) {
-        notify(`Pomyślnie dodano ${newApps.length} ofert (pominięto ${duplicateCount} duplikatów).`);
-      } else {
-        notify(`Pomyślnie zaimportowano ${newApps.length} nowych ofert!`);
-      }
-
-      setSyncStatus('syncing');
-      try {
-        await api.batchCreateApplications(newApps);
-        setSyncStatus('idle');
-      } catch (err) {
-        console.error('Failed to sync batch import to server', err);
-        setApplications((prev) => prev.filter((app) => !addedIds.has(app.id)));
-        setSyncStatus('error');
-        notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-      }
+      await run({
+        applyOptimistic: () => setApplications((prev) => [...newApps, ...prev]),
+        notifyOptimistic: () =>
+          duplicateCount > 0
+            ? notify(
+                `Pomyślnie dodano ${newApps.length} ofert (pominięto ${duplicateCount} duplikatów).`
+              )
+            : notify(`Pomyślnie zaimportowano ${newApps.length} nowych ofert!`),
+        request: () => api.batchCreateApplications(newApps),
+        rollback: () => setApplications((prev) => prev.filter((app) => !addedIds.has(app.id))),
+        errorLabel: 'Failed to sync batch import to server',
+      });
     },
-    [notify]
+    [notify, run, setApplications]
   );
 
   // Apply status updates from inbox sync
@@ -278,14 +259,11 @@ export function useOptimisticCrud({
           ? `${app.notes}\n${update.noteAddition}`
           : update.noteAddition;
 
-        const updatedTimeline = appendTimelineTransition(
-          app.timeline,
+        const updatedTimeline = appendStatusTransition(
+          app,
           update.newStatus,
           update.meetingDate || today,
-          update.noteAddition || undefined,
-          app.id,
-          app.appliedDate,
-          app.status
+          update.noteAddition || undefined
         );
 
         apiPayloads.push({
@@ -301,27 +279,14 @@ export function useOptimisticCrud({
 
       const payloadMap = new Map(apiPayloads.map((p) => [p.id, p]));
 
-      setApplications((prev) =>
-        prev.map((app) => {
-          const item = payloadMap.get(app.id);
-          return item ? { ...app, ...item } : app;
-        })
-      );
-
-      setSyncStatus('syncing');
-      try {
-        await api.batchUpdateApplications(apiPayloads);
-        setSyncStatus('idle');
-      } catch (err) {
-        console.error('Failed to sync inbox updates to server', err);
-        setApplications((prev) =>
-          prev.map((app) => originalAppsMap.get(app.id) || app)
-        );
-        setSyncStatus('error');
-        notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-      }
+      await run({
+        applyOptimistic: () => applyPatches(payloadMap),
+        request: () => api.batchUpdateApplications(apiPayloads),
+        rollback: () => setApplications((prev) => prev.map((app) => originalAppsMap.get(app.id) || app)),
+        errorLabel: 'Failed to sync inbox updates to server',
+      });
     },
-    [notify]
+    [applicationsRef, applyPatches, run, setApplications]
   );
 
   // Add newly discovered app from inbox sync
@@ -354,21 +319,15 @@ export function useOptimisticCrud({
         return;
       }
 
-      setApplications((prev) => [created, ...prev]);
-      notify(`Dodano ofertę wykrytą z poczty: ${created.company}`);
-
-      setSyncStatus('syncing');
-      try {
-        await api.createApplication(created);
-        setSyncStatus('idle');
-      } catch (err) {
-        console.error('Failed to sync discovered email app to server', err);
-        setApplications((prev) => prev.filter((app) => app.id !== created.id));
-        setSyncStatus('error');
-        notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-      }
+      await run({
+        applyOptimistic: () => setApplications((prev) => [created, ...prev]),
+        notifyOptimistic: () => notify(`Dodano ofertę wykrytą z poczty: ${created.company}`),
+        request: () => api.createApplication(created),
+        rollback: () => setApplications((prev) => prev.filter((app) => app.id !== created.id)),
+        errorLabel: 'Failed to sync discovered email app to server',
+      });
     },
-    [notify]
+    [applicationsRef, notify, run, setApplications]
   );
 
   // Bulk status update with atomic batchUpdateApplications and rollback
@@ -400,15 +359,7 @@ export function useOptimisticCrud({
           lastUpdated: app.lastUpdated,
         });
 
-        const updatedTimeline = appendTimelineTransition(
-          app.timeline,
-          newStatus,
-          today,
-          undefined,
-          app.id,
-          app.appliedDate,
-          app.status
-        );
+        const updatedTimeline = appendStatusTransition(app, newStatus, today);
 
         updatesPayload.push({
           id: app.id,
@@ -420,39 +371,15 @@ export function useOptimisticCrud({
 
       const updatesMap = new Map(updatesPayload.map((u) => [u.id, u]));
 
-      setApplications((prev) =>
-        prev.map((app) => {
-          const item = updatesMap.get(app.id);
-          return item ? { ...app, ...item } : app;
-        })
-      );
-
-      notify(`Zmieniono status dla ${count} aplikacji na: ${newStatus}`);
-
-      setSyncStatus('syncing');
-      try {
-        await api.batchUpdateApplications(updatesPayload);
-        setSyncStatus('idle');
-      } catch (err) {
-        console.error('Failed to sync bulk status update to server', err);
-        setApplications((prev) =>
-          prev.map((app) => {
-            const orig = originalMap.get(app.id);
-            return orig
-              ? {
-                  ...app,
-                  status: orig.status,
-                  timeline: orig.timeline,
-                  lastUpdated: orig.lastUpdated,
-                }
-              : app;
-          })
-        );
-        setSyncStatus('error');
-        notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-      }
+      await run({
+        applyOptimistic: () => applyPatches(updatesMap),
+        notifyOptimistic: () => notify(`Zmieniono status dla ${count} aplikacji na: ${newStatus}`),
+        request: () => api.batchUpdateApplications(updatesPayload),
+        rollback: () => applyPatches(originalMap),
+        errorLabel: 'Failed to sync bulk status update to server',
+      });
     },
-    [notify]
+    [applicationsRef, applyPatches, notify, run]
   );
 
   // Bulk date update with atomic batchUpdateApplications and rollback
@@ -463,10 +390,7 @@ export function useOptimisticCrud({
       const now = new Date().toISOString();
       const selectedSet = new Set(selectedIds);
 
-      const originalMap = new Map<
-        string,
-        { appliedDate: string; lastUpdated?: string }
-      >();
+      const originalMap = new Map<string, { appliedDate: string; lastUpdated?: string }>();
 
       const updatesPayload: Array<{ id: string; appliedDate: string; lastUpdated: string }> = [];
 
@@ -485,38 +409,16 @@ export function useOptimisticCrud({
 
       const updatesMap = new Map(updatesPayload.map((u) => [u.id, u]));
 
-      setApplications((prev) =>
-        prev.map((app) => {
-          const item = updatesMap.get(app.id);
-          return item ? { ...app, ...item } : app;
-        })
-      );
-
-      notify(`Zaktualizowano datę wysłania dla ${count} aplikacji na: ${newDate}`);
-
-      setSyncStatus('syncing');
-      try {
-        await api.batchUpdateApplications(updatesPayload);
-        setSyncStatus('idle');
-      } catch (err) {
-        console.error('Failed to sync bulk date update to server', err);
-        setApplications((prev) =>
-          prev.map((app) => {
-            const orig = originalMap.get(app.id);
-            return orig
-              ? {
-                  ...app,
-                  appliedDate: orig.appliedDate,
-                  lastUpdated: orig.lastUpdated,
-                }
-              : app;
-          })
-        );
-        setSyncStatus('error');
-        notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-      }
+      await run({
+        applyOptimistic: () => applyPatches(updatesMap),
+        notifyOptimistic: () =>
+          notify(`Zaktualizowano datę wysłania dla ${count} aplikacji na: ${newDate}`),
+        request: () => api.batchUpdateApplications(updatesPayload),
+        rollback: () => applyPatches(originalMap),
+        errorLabel: 'Failed to sync bulk date update to server',
+      });
     },
-    [notify]
+    [applicationsRef, applyPatches, notify, run]
   );
 
   // Bulk delete with atomic batchDeleteApplications and rollback
@@ -527,25 +429,20 @@ export function useOptimisticCrud({
       const selectedSet = new Set(selectedIds);
       const toDeleteApps = applicationsRef.current.filter((app) => selectedSet.has(app.id));
 
-      setApplications((prev) => prev.filter((app) => !selectedSet.has(app.id)));
-      notify(`Trwale usunięto ${count} zaznaczonych aplikacji.`);
-
-      setSyncStatus('syncing');
-      try {
-        await api.batchDeleteApplications(selectedIds);
-        setSyncStatus('idle');
-      } catch (err) {
-        console.error('Failed to sync bulk delete to server', err);
-        setApplications((prev) => {
-          const currentIds = new Set(prev.map((a) => a.id));
-          const restored = toDeleteApps.filter((a) => !currentIds.has(a.id));
-          return [...restored, ...prev];
-        });
-        setSyncStatus('error');
-        notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-      }
+      await run({
+        applyOptimistic: () => setApplications((prev) => prev.filter((app) => !selectedSet.has(app.id))),
+        notifyOptimistic: () => notify(`Trwale usunięto ${count} zaznaczonych aplikacji.`),
+        request: () => api.batchDeleteApplications(selectedIds),
+        rollback: () =>
+          setApplications((prev) => {
+            const currentIds = new Set(prev.map((a) => a.id));
+            const restored = toDeleteApps.filter((a) => !currentIds.has(a.id));
+            return [...restored, ...prev];
+          }),
+        errorLabel: 'Failed to sync bulk delete to server',
+      });
     },
-    [notify]
+    [applicationsRef, notify, run, setApplications]
   );
 
   // Reset to initial 25 QA jobs
@@ -569,7 +466,7 @@ export function useOptimisticCrud({
       return true;
     }
     return false;
-  }, [notify]);
+  }, [notify, setApplications]);
 
   // Re-analyze single job via AI API
   const reAnalyzeWithAi = useCallback(
@@ -610,31 +507,24 @@ export function useOptimisticCrud({
           lastUpdated: now,
         };
 
-        setApplications((prev) =>
-          prev.map((item) => (item.id === app.id ? { ...item, ...updates } : item))
-        );
-
-        setSyncStatus('syncing');
-        try {
-          await api.updateApplication(app.id, updates);
-          setSyncStatus('idle');
-          notify(
-            `Zaktualizowano dane oferty: ${data.company || currentTarget.company} - ${data.role || currentTarget.role}`
-          );
-        } catch (syncErr) {
-          console.error('Failed to sync AI analysis update to server', syncErr);
-          setApplications((prev) =>
-            prev.map((item) => (item.id === app.id ? originalApp : item))
-          );
-          setSyncStatus('error');
-          notify('Błąd zapisu na serwerze - przywrócono poprzedni stan.');
-        }
+        await run({
+          applyOptimistic: () =>
+            setApplications((prev) => prev.map((item) => (item.id === app.id ? { ...item, ...updates } : item))),
+          request: () => api.updateApplication(app.id, updates),
+          rollback: () =>
+            setApplications((prev) => prev.map((item) => (item.id === app.id ? originalApp : item))),
+          errorLabel: 'Failed to sync AI analysis update to server',
+          onSuccess: () =>
+            notify(
+              `Zaktualizowano dane oferty: ${data.company || currentTarget.company} - ${data.role || currentTarget.role}`
+            ),
+        });
       } catch (e) {
         console.error(e);
         notify('Nie udało się przeanalizować linku przez AI.');
       }
     },
-    [notify]
+    [applicationsRef, notify, run, setApplications]
   );
 
   // Import full JSON backup (merge or overwrite)
@@ -691,7 +581,7 @@ export function useOptimisticCrud({
         }
       }
     },
-    [applications, notify]
+    [applications, notify, setApplications]
   );
 
   return {
