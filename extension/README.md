@@ -43,6 +43,22 @@ Oficjalna wtyczka przeglądarkowa (Chrome / Brave / Edge, Manifest V3) dla aplik
    ```
 5. Pin **Resume Tracker - Job Clipper** to your browser toolbar for one-click access.
 
+### Generated artifact: `extension/vendor/urlUtils.js`
+
+URL normalization (the rule that drives duplicate detection) lives in
+`shared/utils/urlUtils.ts` — the single source of truth for both the backend and
+this extension. The extension cannot import TypeScript, so the file is bundled:
+
+```bash
+npm run build:extension-vendor   # esbuild shared/utils/urlUtils.ts -> extension/vendor/urlUtils.js
+```
+
+That command also runs automatically before `vite build`. The generated file
+**is committed** so that `Load unpacked` works from a fresh clone; if you edit
+`shared/utils/urlUtils.ts`, regenerate it and commit the result — `npm test`
+includes `tests/extension-url-parity.test.ts`, which fails when the two copies
+disagree.
+
 ---
 
 ## ⚙️ Configuration (Localhost / LAN / Proxmox)

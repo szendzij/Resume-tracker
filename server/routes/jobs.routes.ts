@@ -6,7 +6,12 @@ import { extractMetadataFromTitleAndUrl } from '../../shared/utils/metadataExtra
 
 export const jobsRouter = Router();
 
-// Endpoint: Parse single job link via Gemini LLM + Heuristics
+// Endpoint: Parse single job link via Gemini LLM + Heuristics.
+// NOTE: The canonical path is `/jobs/parse-job`. The short `/parse-job` is a
+// BACKWARDS-COMPATIBILITY ALIAS kept for the Chrome extension and legacy clients
+// (see AGENTS.md §5.1 "Endpoint Fallback"). Do not remove either path; new code
+// (server and extension) should always call the `/jobs/*` form first and only
+// fall back to the short alias on 404.
 jobsRouter.post(['/parse-job', '/jobs/parse-job'], async (req: Request, res: Response) => {
   const { url, rawText, linkTitle, customApiKey } = req.body;
   const customKey = (req.headers['x-gemini-key'] as string) || customApiKey;
@@ -62,7 +67,12 @@ jobsRouter.post(['/parse-job', '/jobs/parse-job'], async (req: Request, res: Res
   }
 });
 
-// Endpoint: Batch parse multiple links with Gemini AI
+// Endpoint: Batch parse multiple links with Gemini AI.
+// NOTE: The canonical path is `/jobs/batch-parse`. The short `/batch-parse` is a
+// BACKWARDS-COMPATIBILITY ALIAS kept for the Chrome extension and legacy clients
+// (see AGENTS.md §5.1 "Endpoint Fallback"). Do not remove either path; new code
+// (server and extension) should always call the `/jobs/*` form first and only
+// fall back to the short alias on 404.
 jobsRouter.post(['/batch-parse', '/jobs/batch-parse'], async (req: Request, res: Response) => {
   const { items, urls, customApiKey } = req.body;
   const customKey = (req.headers['x-gemini-key'] as string) || customApiKey;

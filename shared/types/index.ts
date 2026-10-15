@@ -12,6 +12,9 @@ export const ALL_STATUSES = [
 
 export type JobStatus = (typeof ALL_STATUSES)[number];
 
+/** Single source of truth for the status used when none is provided (was duplicated across 4 layers). */
+export const DEFAULT_STATUS: JobStatus = 'Wysłana';
+
 export interface ApplicationTimelineEntry {
   id: string;
   status: JobStatus;

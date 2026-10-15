@@ -1,6 +1,7 @@
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import { getGemini } from './gemini.service';
 import { ENV } from '../config/env';
+import { emailAnalysisResponseConfig } from './gemini-schemas';
 
 export interface EmailAnalysisInput {
   id: string;
@@ -244,30 +245,7 @@ Dla KAŻDEJ wiadomości e-mail (wg indeksu):
     const aiRes = await ai.models.generateContent({
       model: ENV.GEMINI_MODEL,
       contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.ARRAY,
-          items: {
-            type: Type.OBJECT,
-            properties: {
-              index: { type: Type.INTEGER },
-              matchedApplicationId: { type: Type.STRING },
-              matchedCompany: { type: Type.STRING },
-              matchedRole: { type: Type.STRING },
-              suggestedStatus: { type: Type.STRING },
-              confidence: { type: Type.STRING },
-              summary: { type: Type.STRING },
-              reasoning: { type: Type.STRING },
-              meetingDate: { type: Type.STRING },
-              meetingLink: { type: Type.STRING },
-              actionRequired: { type: Type.STRING },
-              isNewApplication: { type: Type.BOOLEAN },
-            },
-            required: ['index', 'suggestedStatus', 'summary', 'reasoning'],
-          },
-        },
-      },
+      config: emailAnalysisResponseConfig,
     });
 
     const parsedResults: any[] = JSON.parse(aiRes.text || '[]');

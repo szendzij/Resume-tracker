@@ -1,8 +1,26 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { dbService, prisma } from './db.service';
 import { JobApplication } from '../../shared/types';
 
 describe('dbService', () => {
+  beforeEach(() => {
+    // Ensure every test starts from a clean mock state, even if a previous
+    // test failed (e.g. timed out) before it could restore its own spies.
+    vi.restoreAllMocks();
+  });
+
+  afterEach(() => {
+    // Spies on the shared `prisma` singleton must never leak across tests.
+    // If a test throws/times out before its inline mockRestore(), a lingering
+    // spy on prisma.$transaction would be called by later tests and can recurse
+    // on itself (RangeError: Maximum call stack size exceeded -> timeouts).
+    vi.restoreAllMocks();
+  });
+
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
+
   it('saves and retrieves applications with parsed JSON fields', async () => {
     const mockApp: JobApplication = {
       id: 'test-job-1',

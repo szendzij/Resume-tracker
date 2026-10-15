@@ -4,6 +4,10 @@
  * with the Resume Tracker Express backend.
  */
 
+// Single source of truth for URL normalization, generated from shared/utils/urlUtils.ts
+// by `npm run build:extension-vendor`. Do not duplicate the rule in this file.
+import { normalizeJobUrl } from './vendor/urlUtils.js';
+
 // Shared application state
 export const state = {
   serverUrl: 'http://localhost:3050',
@@ -33,58 +37,17 @@ export function resetState() {
 /**
  * Normalizes a URL by stripping tracking parameters, trailing slashes,
  * and standardizing protocols and hosts.
+ *
+ * Single source of truth: shared/utils/urlUtils.ts. This thin wrapper keeps the
+ * legacy input guard and delegates the actual rule to the generated vendor
+ * bundle (extension/vendor/urlUtils.js), so the extension and the backend can
+ * never drift apart on duplicate detection.
  * @param {string} rawUrl
  * @returns {string}
  */
 export function normalizeUrl(rawUrl) {
   if (!rawUrl || typeof rawUrl !== 'string') return '';
-  const trimmed = rawUrl.trim();
-  if (!trimmed) return '';
-
-  try {
-    const parsed = new URL(trimmed);
-    const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
-    let pathname = parsed.pathname;
-    if (pathname.length > 1 && pathname.endsWith('/')) {
-      pathname = pathname.slice(0, -1);
-    }
-
-    const trackingPrefixes = ['utm_', 'gad_'];
-    const exactTrackingParams = new Set([
-      'gclid',
-      'gbraid',
-      'eclid',
-      'fbclid',
-      'refid',
-      'trackingid',
-      'origin',
-      'origintolandingjobpostings',
-      'ebp',
-      'campaignid',
-      'adgroupid',
-      'keyword',
-      'searchid',
-      'source',
-      's',
-    ]);
-
-    const cleanParams = new URLSearchParams();
-    parsed.searchParams.forEach((val, key) => {
-      const lowerKey = key.toLowerCase();
-      const isTracking =
-        exactTrackingParams.has(lowerKey) ||
-        trackingPrefixes.some((prefix) => lowerKey.startsWith(prefix));
-      if (!isTracking) {
-        cleanParams.append(key, val);
-      }
-    });
-
-    const queryString = cleanParams.toString();
-    const cleanProtocol = parsed.protocol.toLowerCase();
-    return `${cleanProtocol}//${host}${pathname}${queryString ? `?${queryString}` : ''}`;
-  } catch {
-    return trimmed.toLowerCase().replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '');
-  }
+  return normalizeJobUrl(rawUrl);
 }
 
 /**

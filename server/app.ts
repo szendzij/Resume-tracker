@@ -4,6 +4,7 @@ import { authRouter, renderAuthCallbackHtml } from './routes/auth.routes';
 import { emailsRouter } from './routes/emails.routes';
 import { geminiRouter } from './routes/gemini.routes';
 import { applicationsRouter } from './routes/applications.routes';
+import { errorHandler } from './middleware/errorHandler';
 
 export const app = express();
 
@@ -37,3 +38,6 @@ app.use('/api', jobsRouter);
 app.use('/api', emailsRouter);
 app.use('/api/gemini', geminiRouter);
 app.use('/api/applications', applicationsRouter);
+
+// Central error handler - MUST be mounted last, after all routers.
+app.use(errorHandler);
