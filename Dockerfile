@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf 
 # Copy production runtime files from builder
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts/db-baseline.mjs ./scripts/db-baseline.mjs
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 
@@ -45,4 +46,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # Apply Prisma migrations before starting (fresh volumes get the baseline schema;
 # pre-existing databases are baselined so `deploy` does not fail with P3005).
-CMD ["sh", "-c", "bunx prisma migrate deploy || (bunx prisma migrate resolve --applied $(ls prisma/migrations | grep _baseline | head -n1) && bunx prisma migrate deploy); exec bun run dist/server.cjs"]
+# The baseline migration is located by scripts/db-baseline.mjs — the single
+# source of truth shared with the npm db:baseline script (no duplicated
+# `ls | grep _baseline` shell logic here).
+CMD ["sh", "-c", "bunx prisma migrate deploy || (bun scripts/db-baseline.mjs && bunx prisma migrate deploy); exec bun run dist/server.cjs"]

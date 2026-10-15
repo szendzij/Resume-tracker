@@ -24,6 +24,11 @@ function listLocalMigrations(): string[] {
   }
 }
 
+// Runtime, in-process baseline lookup used on application startup. The same
+// intent (locate the *_baseline migration and mark it applied) for invocations
+// OUTSIDE the app — the npm db:baseline script and the Docker CMD fallback — is
+// handled by scripts/db-baseline.mjs, which is the single source of truth for
+// out-of-app baselining.
 function findBaselineMigration(): string | null {
   return listLocalMigrations().find((name) => name.endsWith('_baseline')) ?? null;
 }
